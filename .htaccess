@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  
+  # Sin referencias a lgm/
+  RewriteRule ^api/(.*)$ api/$1 [L]
+  RewriteRule ^ index.php [L]
+</IfModule>
