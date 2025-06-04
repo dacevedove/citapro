@@ -27,6 +27,9 @@ if (!isset($data->email) || !isset($data->password)) {
 }
 
 try {
+    // Log para debugging
+    error_log("Intento de login para email: " . $data->email);
+    
     // Buscar el usuario en la base de datos
     $stmt = $conn->prepare("SELECT id, nombre, apellido, email, password, cedula, telefono, role FROM usuarios WHERE email = :email");
     $stmt->bindParam(':email', $data->email);
@@ -34,18 +37,31 @@ try {
     
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
+    // Log para debugging
+    error_log("Usuario encontrado: " . ($user ? 'Sí' : 'No'));
+    
     // Verificar si se encontró el usuario
     if (!$user) {
         http_response_code(401); // Unauthorized
-        echo json_encode(["error" => "Usuario no encontrado"]);
+        echo json_encode(["error" => "Usuario no encontrado", "debug_email" => $data->email]);
         exit;
     }
     
-    // TEMPORALMENTE: Iniciar sesión sin verificar contraseña
-    // En lugar de verificar la contraseña, siempre inicia sesión
-    // Esto es solo para propósitos de depuración
-    // $passwordIsValid = password_verify($data->password, $user['password']);
-    $passwordIsValid = true; // Omitir verificación de contraseña temporalmente
+    // Log la contraseña hasheada para debugging
+    error_log("Contraseña hasheada en BD: " . substr($user['password'], 0, 10) . "...");
+    
+    // Verificar contraseña
+    $passwordIsValid = password_verify($data->password, $user['password']);
+    
+    // Log para debugging
+    error_log("Contraseña válida: " . ($passwordIsValid ? 'Sí' : 'No'));
+    
+    // PARA DEBUGGING: También probar con contraseña directa (SOLO PARA DESARROLLO)
+    if (!$passwordIsValid) {
+        // Verificar si la contraseña coincide directamente (para cuentas de prueba)
+        $passwordIsValid = ($data->password === $user['password']);
+        error_log("Verificación directa: " . ($passwordIsValid ? 'Sí' : 'No'));
+    }
     
     if ($passwordIsValid) {
         // Crear usuario sin la contraseña para incluir en el token
@@ -62,6 +78,9 @@ try {
         // Generar el token JWT
         $token = generateJWT($userWithoutPassword);
         
+        // Log exitoso
+        error_log("Login exitoso para: " . $user['email']);
+        
         // Responder con el token y los datos del usuario
         http_response_code(200);
         echo json_encode([
@@ -75,6 +94,8 @@ try {
     }
     
 } catch (PDOException $e) {
+    // Log el error
+    error_log("Error PDO en login: " . $e->getMessage());
     http_response_code(500); // Internal Server Error
     echo json_encode(["error" => "Error en el servidor: " . $e->getMessage()]);
 }
