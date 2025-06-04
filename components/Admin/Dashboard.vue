@@ -283,19 +283,19 @@
           const token = localStorage.getItem('token');
           
           // Cargar especialidades
-          const espResponse = await axios.get('https://localhost/lgm/api/doctores/especialidades.php', {
+          const espResponse = await axios.get('https://localhost/api/doctores/especialidades.php', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           this.especialidades = espResponse.data;
           
           // Cargar doctores
-          const docResponse = await axios.get('https://localhost/lgm/api/doctores/listar.php', {
+          const docResponse = await axios.get('https://localhost/api/doctores/listar.php', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           this.doctores = docResponse.data;
           
           // Cargar aseguradoras
-          const asegResponse = await axios.get('https://localhost/lgm/api/aseguradoras/listar.php', {
+          const asegResponse = await axios.get('https://localhost/api/aseguradoras/listar.php', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           this.aseguradoras = asegResponse.data;
@@ -319,7 +319,7 @@
           const token = localStorage.getItem('token');
           
           // Construir URL con filtros
-          let url = 'https://localhost/lgm/api/citas/filtrar.php';
+          let url = 'https://localhost/api/citas/filtrar.php';
           const params = new URLSearchParams();
           
           if (this.filtros.tipoSolicitante) {
@@ -450,7 +450,7 @@
             payload.asignacion_libre = true;
           }
           
-          const response = await axios.put('https://localhost/lgm/api/citas/asignar.php', payload, {
+          const response = await axios.put('https://localhost/api/citas/asignar.php', payload, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -479,7 +479,7 @@
         try {
           const token = localStorage.getItem('token');
           
-          const response = await axios.put('https://localhost/lgm/api/citas/actualizar.php', {
+          const response = await axios.put('https://localhost/api/citas/actualizar.php', {
             cita_id: this.citaSeleccionada.id,
             estado: 'cancelada',
             motivo_cancelacion: this.cancellationReason

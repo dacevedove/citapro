@@ -266,7 +266,7 @@ formatearTiempoTranscurrido(fechaString) {
     async cargarEspecialidades() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('/lgm/api/doctores/especialidades.php', {
+        const response = await axios.get('/api/doctores/especialidades.php', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -279,7 +279,7 @@ formatearTiempoTranscurrido(fechaString) {
     async cargarDoctores() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('/lgm/api/doctores/listar.php', {
+        const response = await axios.get('/api/doctores/listar.php', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -294,7 +294,7 @@ formatearTiempoTranscurrido(fechaString) {
       
       try {
         const token = localStorage.getItem('token');
-        let url = '/lgm/api/citas/filtrar.php';
+        let url = '/api/citas/filtrar.php';
         const params = new URLSearchParams();
         
         if (this.filtros.estado) {
@@ -423,7 +423,7 @@ formatearTiempoTranscurrido(fechaString) {
           payload.asignacion_libre = true;
         }
         
-        const response = await axios.put('/lgm/api/citas/asignar.php', payload, {
+        const response = await axios.put('/api/citas/asignar.php', payload, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -464,7 +464,7 @@ formatearTiempoTranscurrido(fechaString) {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.put('/lgm/api/citas/actualizar.php', {
+        const response = await axios.put('/api/citas/actualizar.php', {
           cita_id: this.citaSeleccionada.id,
           estado: 'cancelada',
           motivo_cancelacion: this.motivoCancelacion

@@ -198,7 +198,7 @@ export default {
           return;
         }
 
-        const response = await axios.get('/lgm/api/aseguradoras/listar.php', {
+        const response = await axios.get('/api/aseguradoras/listar.php', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -274,7 +274,7 @@ export default {
         
         if (this.modoEdicion) {
           // Actualizar aseguradora
-          await axios.put('/lgm/api/aseguradoras/actualizar.php', 
+          await axios.put('/api/aseguradoras/actualizar.php', 
             this.aseguradoraActual,
             {
               headers: {
@@ -286,7 +286,7 @@ export default {
           alert('Aseguradora actualizada exitosamente');
         } else {
           // Crear nueva aseguradora
-          await axios.post('/lgm/api/aseguradoras/crear.php', 
+          await axios.post('/api/aseguradoras/crear.php', 
             this.aseguradoraActual,
             {
               headers: {
@@ -318,7 +318,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        await axios.delete('/lgm/api/aseguradoras/eliminar.php', {
+        await axios.delete('/api/aseguradoras/eliminar.php', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

@@ -374,7 +374,7 @@ export default {
       this.isLoading = true;
       
       try {
-        const response = await axios.get('/lgm/api/vertice/listar_solicitudes.php');
+        const response = await axios.get('/api/vertice/listar_solicitudes.php');
         this.solicitudes = response.data.data || [];
       } catch (error) {
         console.error('Error cargando solicitudes:', error);
@@ -385,7 +385,7 @@ export default {
     },
     async loadEspecialidades() {
       try {
-        const response = await axios.get('/lgm/api/doctores/especialidades.php');
+        const response = await axios.get('/api/doctores/especialidades.php');
         this.especialidades = response.data;
       } catch (error) {
         console.error('Error cargando especialidades:', error);
@@ -412,7 +412,7 @@ export default {
           fecha_solicitud: new Date().toISOString().split('T')[0]
         };
         
-        await axios.post('/lgm/api/vertice/crear_solicitud.php', solicitudData);
+        await axios.post('/api/vertice/crear_solicitud.php', solicitudData);
         this.showAlert('success', 'Solicitud creada exitosamente');
         this.cerrarModal();
         this.loadSolicitudes();
@@ -435,7 +435,7 @@ export default {
           id: this.solicitudAEditar.id
         };
         
-        await axios.post('/lgm/api/vertice/actualizar_solicitud.php', solicitudData);
+        await axios.post('/api/vertice/actualizar_solicitud.php', solicitudData);
         this.showAlert('success', 'Solicitud actualizada exitosamente');
         this.cerrarModal();
         this.loadSolicitudes();
@@ -446,7 +446,7 @@ export default {
     },
     async eliminarSolicitud() {
       try {
-        await axios.post('/lgm/api/vertice/eliminar_solicitud.php', { id: this.solicitudAEliminar.id });
+        await axios.post('/api/vertice/eliminar_solicitud.php', { id: this.solicitudAEliminar.id });
         this.showAlert('success', 'Solicitud eliminada exitosamente');
         this.showDeleteModal = false;
         this.solicitudAEliminar = null;
@@ -490,7 +490,7 @@ export default {
     async cargarDatosAsignacion(solicitudId) {
       try {
         this.isLoading = true;
-        const response = await axios.get(`/lgm/api/vertice/obtener_asignacion.php?solicitud_id=${solicitudId}`);
+        const response = await axios.get(`/api/vertice/obtener_asignacion.php?solicitud_id=${solicitudId}`);
         if (response.data && response.data.data) {
           this.solicitudAsignacion = response.data.data;
         } else {
@@ -526,7 +526,7 @@ export default {
     // Método para eliminar la asignación
     async eliminarAsignacion() {
       try {
-        const response = await axios.post('/lgm/api/vertice/eliminar_asignacion.php', { 
+        const response = await axios.post('/api/vertice/eliminar_asignacion.php', { 
           solicitud_id: this.solicitudAEditar.id 
         });
         

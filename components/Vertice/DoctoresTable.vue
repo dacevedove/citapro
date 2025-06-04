@@ -69,7 +69,7 @@ export default {
   },
   methods: {
     loadDoctores() {
-      axios.get('/lgm/api/vertice/listar_doctores.php')
+      axios.get('/api/vertice/listar_doctores.php')
         .then(response => {
           // Asegurarse de que los valores booleanos se manejen correctamente
           this.doctores = response.data.data.map(doctor => {
@@ -88,7 +88,7 @@ export default {
       // Convertir el valor booleano a 1 o 0 para la API
       const activoValue = doctor.activo ? 1 : 0;
       
-      axios.put('/lgm/api/vertice/actualizar_doctor.php', {
+      axios.put('/api/vertice/actualizar_doctor.php', {
         doctor_id: doctor.id,
         activo: activoValue
       })

@@ -308,7 +308,7 @@
       async cargarEspecialidades() {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get('/lgm/api/doctores/especialidades.php', {
+          const response = await axios.get('/api/doctores/especialidades.php', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -321,7 +321,7 @@
       async cargarDoctores() {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get('/lgm/api/doctores/listar.php', {
+          const response = await axios.get('/api/doctores/listar.php', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -346,7 +346,7 @@
         
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get(`/lgm/api/pacientes/buscar.php?cedula=${this.cedulaPaciente}`, {
+          const response = await axios.get(`/api/pacientes/buscar.php?cedula=${this.cedulaPaciente}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -389,7 +389,7 @@
         
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get(`/lgm/api/titulares/buscar.php?cedula=${this.cedulaTitular}`, {
+          const response = await axios.get(`/api/titulares/buscar.php?cedula=${this.cedulaTitular}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -421,7 +421,7 @@
       console.log('Creando nuevo paciente:', this.nuevoPaciente);
       
       try {
-        const nuevoPacienteResponse = await axios.post('/lgm/api/pacientes/crear.php', this.nuevoPaciente, {
+        const nuevoPacienteResponse = await axios.post('/api/pacientes/crear.php', this.nuevoPaciente, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -444,7 +444,7 @@
     console.log('Enviando datos de cita:', payload);
     
     try {
-      const citaResponse = await axios.post('/lgm/api/citas/crear.php', payload, {
+      const citaResponse = await axios.post('/api/citas/crear.php', payload, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -467,7 +467,7 @@
         console.log('Enviando datos de asignación:', asignacionPayload);
         
         try {
-          const asignacionResponse = await axios.put('/lgm/api/citas/asignar.php', asignacionPayload, {
+          const asignacionResponse = await axios.put('/api/citas/asignar.php', asignacionPayload, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           

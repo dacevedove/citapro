@@ -219,7 +219,7 @@ export default {
     async obtenerInfoDoctor() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('https://localhost/lgm/api/doctores/perfil.php', {
+        const response = await axios.get('https://localhost/api/doctores/perfil.php', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -244,19 +244,19 @@ export default {
         const token = localStorage.getItem('token');
         
         // Cargar citas asignadas
-        const asignadasResponse = await axios.get(`https://localhost/lgm/api/citas/listar.php?doctor_id=${this.doctorId}&estado=asignada`, {
+        const asignadasResponse = await axios.get(`https://localhost/api/citas/listar.php?doctor_id=${this.doctorId}&estado=asignada`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         this.citasAsignadas = asignadasResponse.data;
         
         // Cargar citas disponibles
-        const disponiblesResponse = await axios.get(`https://localhost/lgm/api/citas/listar.php?asignacion_libre=1&especialidad_id=${this.especialidadId}&estado=asignada`, {
+        const disponiblesResponse = await axios.get(`https://localhost/api/citas/listar.php?asignacion_libre=1&especialidad_id=${this.especialidadId}&estado=asignada`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         this.citasDisponibles = disponiblesResponse.data;
         
         // Cargar citas programadas
-        const programadasResponse = await axios.get(`https://localhost/lgm/api/citas/listar.php?doctor_id=${this.doctorId}&estado=confirmada`, {
+        const programadasResponse = await axios.get(`https://localhost/api/citas/listar.php?doctor_id=${this.doctorId}&estado=confirmada`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         this.citasProgramadas = programadasResponse.data;
@@ -277,7 +277,7 @@ export default {
           .slice(0, 5); // Mostrar solo las 5 más próximas
         
         // Cargar citas completadas (contador)
-        const completadasResponse = await axios.get(`https://localhost/lgm/api/citas/listar.php?doctor_id=${this.doctorId}&estado=completada`, {
+        const completadasResponse = await axios.get(`https://localhost/api/citas/listar.php?doctor_id=${this.doctorId}&estado=completada`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         this.totalCitasCompletadas = completadasResponse.data.length;
@@ -348,7 +348,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.put('https://localhost/lgm/api/citas/actualizar.php', {
+        const response = await axios.put('https://localhost/api/citas/actualizar.php', {
           cita_id: this.citaSeleccionada.id,
           estado: 'cancelada',
           motivo_cancelacion: this.motivo
@@ -374,7 +374,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.put('https://localhost/lgm/api/citas/actualizar.php', {
+        const response = await axios.put('https://localhost/api/citas/actualizar.php', {
           cita_id: this.citaSeleccionada.id,
           estado: 'completada',
           observaciones: this.observaciones

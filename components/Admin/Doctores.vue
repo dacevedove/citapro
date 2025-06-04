@@ -337,7 +337,7 @@ export default {
     async cargarEspecialidades() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('/lgm/api/doctores/especialidades.php', {
+        const response = await axios.get('/api/doctores/especialidades.php', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -355,7 +355,7 @@ export default {
       
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`/lgm/api/doctores/get_subespecialidades.php?especialidad_id=${especialidadId}`, {
+        const response = await axios.get(`/api/doctores/get_subespecialidades.php?especialidad_id=${especialidadId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -373,7 +373,7 @@ export default {
       
       try {
         const token = localStorage.getItem('token');
-        let url = '/lgm/api/doctores/listar.php';
+        let url = '/api/doctores/listar.php';
         
         // Aplicar filtros
         const params = new URLSearchParams();
@@ -501,7 +501,7 @@ export default {
         
         if (this.editando) {
           // Actualizar doctor existente
-          const response = await axios.put('/lgm/api/doctores/actualizar.php', this.doctorForm, {
+          const response = await axios.put('/api/doctores/actualizar.php', this.doctorForm, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -511,7 +511,7 @@ export default {
           }
         } else {
           // Crear nuevo doctor
-          const response = await axios.post('/lgm/api/doctores/crear.php', this.doctorForm, {
+          const response = await axios.post('/api/doctores/crear.php', this.doctorForm, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           

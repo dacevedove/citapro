@@ -340,7 +340,7 @@
         
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get('/lgm/api/doctores/especialidades_crud.php', {
+          const response = await axios.get('/api/doctores/especialidades_crud.php', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -397,7 +397,7 @@
           
           if (this.editandoEspecialidad) {
             // Actualizar especialidad existente
-            const response = await axios.put(`/lgm/api/doctores/especialidades_crud.php?id=${this.especialidadForm.id}`, 
+            const response = await axios.put(`/api/doctores/especialidades_crud.php?id=${this.especialidadForm.id}`, 
               this.especialidadForm, 
               { headers: { 'Authorization': `Bearer ${token}` } }
             );
@@ -416,7 +416,7 @@
             }
           } else {
             // Crear nueva especialidad
-            const response = await axios.post('/lgm/api/doctores/especialidades_crud.php', 
+            const response = await axios.post('/api/doctores/especialidades_crud.php', 
               this.especialidadForm, 
               { headers: { 'Authorization': `Bearer ${token}` } }
             );
@@ -449,7 +449,7 @@
         
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get(`/lgm/api/doctores/get_subespecialidades.php?especialidad_id=${especialidadId}`, {
+          const response = await axios.get(`/api/doctores/get_subespecialidades.php?especialidad_id=${especialidadId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -505,7 +505,7 @@
           
           if (this.editandoSubespecialidad) {
             // Actualizar subespecialidad existente
-            const response = await axios.put(`/lgm/api/doctores/subespecialidades_crud.php?id=${this.subespecialidadForm.id}`, 
+            const response = await axios.put(`/api/doctores/subespecialidades_crud.php?id=${this.subespecialidadForm.id}`, 
               this.subespecialidadForm, 
               { headers: { 'Authorization': `Bearer ${token}` } }
             );
@@ -525,7 +525,7 @@
             }
           } else {
             // Crear nueva subespecialidad
-            const response = await axios.post('/lgm/api/doctores/subespecialidades_crud.php', 
+            const response = await axios.post('/api/doctores/subespecialidades_crud.php', 
               this.subespecialidadForm, 
               { headers: { 'Authorization': `Bearer ${token}` } }
             );
@@ -572,7 +572,7 @@
           
           if (this.tipoElemento === 'especialidad') {
             // Eliminar especialidad
-            const response = await axios.delete(`/lgm/api/doctores/especialidades_crud.php?id=${this.elementoAEliminar.id}`, {
+            const response = await axios.delete(`/api/doctores/especialidades_crud.php?id=${this.elementoAEliminar.id}`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             
@@ -589,7 +589,7 @@
             }
           } else if (this.tipoElemento === 'subespecialidad') {
             // Eliminar subespecialidad
-            const response = await axios.delete(`/lgm/api/doctores/subespecialidades_crud.php?id=${this.elementoAEliminar.id}`, {
+            const response = await axios.delete(`/api/doctores/subespecialidades_crud.php?id=${this.elementoAEliminar.id}`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             

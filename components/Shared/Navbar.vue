@@ -3,7 +3,7 @@
     <div class="navbar-container">
       <div class="navbar-brand">
         <router-link to="/" class="brand-link">
-          <img src="https://localhost/lgm/assets/img/logo_lgm.svg" alt="LGM Logo" class="brand-logo">
+          <img src="https://localhost/assets/img/logo_lgm.svg" alt="LGM Logo" class="brand-logo">
         </router-link>
       </div>
       

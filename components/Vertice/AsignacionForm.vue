@@ -453,7 +453,7 @@ export default {
     },
     async loadEspecialidades() {
       try {
-        const response = await axios.get('/lgm/api/doctores/especialidades.php');
+        const response = await axios.get('/api/doctores/especialidades.php');
         this.especialidades = response.data;
       } catch (error) {
         console.error('Error cargando especialidades:', error);
@@ -469,7 +469,7 @@ export default {
           return;
         }
         
-        const response = await axios.get('/lgm/api/vertice/listar_solicitudes.php');
+        const response = await axios.get('/api/vertice/listar_solicitudes.php');
         
         if (response.data.data && response.data.data.length > 0) {
           const solicitudEncontrada = response.data.data.find(s => s.id == solicitudId);
@@ -490,7 +490,7 @@ export default {
     async loadDoctores() {
       try {
         // Verificar si hay una especialidad requerida para filtrar doctores
-        let url = '/lgm/api/doctores/listar.php';
+        let url = '/api/doctores/listar.php';
         if (this.solicitud && this.solicitud.especialidad_requerida) {
           url += `?especialidad_id=${this.solicitud.especialidad_requerida}`;
         }
@@ -500,7 +500,7 @@ export default {
         this.doctores = response.data;
         
         // También cargar los doctores activos
-        const activosResponse = await axios.get('/lgm/api/vertice/listar_doctores.php');
+        const activosResponse = await axios.get('/api/vertice/listar_doctores.php');
         const doctoresActivos = activosResponse.data.data || [];
         
         // Añadir atributo activo a cada doctor
@@ -544,7 +544,7 @@ export default {
     async cargarHorariosDoctor(doctorId) {
       try {
         // Cargar los horarios del doctor
-        const horariosResponse = await axios.get(`/lgm/api/vertice/listar_horarios.php?doctor_id=${doctorId}`);
+        const horariosResponse = await axios.get(`/api/vertice/listar_horarios.php?doctor_id=${doctorId}`);
         const horarios = horariosResponse.data.data || [];
         
         // Para cada horario, cargar sus turnos
@@ -554,7 +554,7 @@ export default {
           
           if (diaValido) {
             // Cargar los turnos de este horario
-            const turnosResponse = await axios.get(`/lgm/api/vertice/listar_turnos.php?horario_id=${horario.id}`);
+            const turnosResponse = await axios.get(`/api/vertice/listar_turnos.php?horario_id=${horario.id}`);
             const turnos = turnosResponse.data.data || [];
             
             // Filtrar solo los turnos disponibles y agregar información adicional
@@ -633,7 +633,7 @@ export default {
       doctor_id: this.selectedDoctor.id
     };
     
-    const response = await axios.post('/lgm/api/vertice/crear_asignacion.php', asignacionData);
+    const response = await axios.post('/api/vertice/crear_asignacion.php', asignacionData);
 
     console.log('Respuesta completa:', response);
     

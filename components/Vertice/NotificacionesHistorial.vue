@@ -332,7 +332,7 @@
         
         try {
           // Construir URL con parámetros de filtro
-          let url = '/lgm/api/notificaciones/listar_notificaciones.php';
+          let url = '/api/notificaciones/listar_notificaciones.php';
           const params = new URLSearchParams();
           
           if (this.filtros.estado) {
@@ -398,7 +398,7 @@
           this.showAlert('info', 'Reintentando envío de notificación...');
           
           // Solicitar reenvío al mismo endpoint
-          const response = await axios.post('/lgm/api/notificaciones/whatsapp_notificacion.php', {
+          const response = await axios.post('/api/notificaciones/whatsapp_notificacion.php', {
             asignacion_id: notificacion.asignacion_id,
             cita_id: notificacion.cita.id
           });

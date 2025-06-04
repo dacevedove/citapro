@@ -508,7 +508,7 @@ export default {
     
     cargarDatosTitular(titularId) {
       this.loading = true;
-      axios.get(`/lgm/api/titulares/obtener.php?id=${titularId}`, {
+      axios.get(`/api/titulares/obtener.php?id=${titularId}`, {
         headers: {
           'Authorization': `Bearer ${this.getToken()}`
         }
@@ -551,7 +551,7 @@ export default {
           }
         }
         
-        const response = await axios.post('/lgm/api/pacientes/actualizar.php', pacienteData, {
+        const response = await axios.post('/api/pacientes/actualizar.php', pacienteData, {
           headers: {
             'Authorization': `Bearer ${this.getToken()}`,
             'Content-Type': 'application/json'
@@ -582,7 +582,7 @@ export default {
 
     async cargarAseguradoras() {
       try {
-        const response = await axios.get('/lgm/api/aseguradoras/listar.php', {
+        const response = await axios.get('/api/aseguradoras/listar.php', {
           headers: {
             'Authorization': `Bearer ${this.getToken()}`
           }
@@ -600,7 +600,7 @@ export default {
     async cargarPacientes() {
       this.loading = true;
       try {
-        let url = '/lgm/api/pacientes/listar.php';
+        let url = '/api/pacientes/listar.php';
         let params = {};
         
         // Filtro de búsqueda por texto
@@ -713,7 +713,7 @@ export default {
           params.numero_afiliado = this.busquedaTitular;
         }
         
-        const response = await axios.get('/lgm/api/titulares/buscar.php', {
+        const response = await axios.get('/api/titulares/buscar.php', {
           params,
           headers: {
             'Authorization': `Bearer ${this.getToken()}`
@@ -759,7 +759,7 @@ export default {
             
             console.log('Enviando datos de titular:', JSON.stringify(titularData));
             
-            const response = await axios.post('/lgm/api/titulares/crear.php', titularData, {
+            const response = await axios.post('/api/titulares/crear.php', titularData, {
               headers: {
                 'Authorization': `Bearer ${this.getToken()}`,
                 'Content-Type': 'application/json'
@@ -797,7 +797,7 @@ export default {
             try {
               const response = await axios({
                 method: 'post',
-                url: '/lgm/api/pacientes/crear.php',
+                url: '/api/pacientes/crear.php',
                 headers: {
                   'Authorization': `Bearer ${this.getToken()}`,
                   'Content-Type': 'application/json'
@@ -831,7 +831,7 @@ export default {
           
           console.log('Enviando datos de paciente particular:', JSON.stringify(pacienteData));
           
-          const response = await axios.post('/lgm/api/pacientes/crear.php', pacienteData, {
+          const response = await axios.post('/api/pacientes/crear.php', pacienteData, {
             headers: {
               'Authorization': `Bearer ${this.getToken()}`,
               'Content-Type': 'application/json'

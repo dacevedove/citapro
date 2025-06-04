@@ -85,7 +85,7 @@
       },
       async updateUserData() {
         try {
-          const response = await axios.post('/lgm/api/auth/update_profile.php', {
+          const response = await axios.post('/api/auth/update_profile.php', {
             id: this.authStore.user.id,
             nombre: this.userData.nombre,
             apellido: this.userData.apellido,
@@ -125,7 +125,7 @@
         }
         
         try {
-          const response = await axios.post('/lgm/api/auth/change_password.php', {
+          const response = await axios.post('/api/auth/change_password.php', {
             id: this.authStore.user.id,
             current_password: this.passwordData.currentPassword,
             new_password: this.passwordData.newPassword

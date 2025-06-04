@@ -283,7 +283,7 @@
       async obtenerInfoDoctor() {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get('https://localhost/lgm/api/doctores/perfil.php', {
+          const response = await axios.get('https://localhost/api/doctores/perfil.php', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -302,7 +302,7 @@
       async cargarConsultorios() {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get('https://localhost/lgm/api/consultorios/listar.php', {
+          const response = await axios.get('https://localhost/api/consultorios/listar.php', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -326,13 +326,13 @@
           
           if (this.activeTab === 'assigned') {
             // Cargar citas asignadas al doctor
-            const asignadasResponse = await axios.get(`https://localhost/lgm/api/citas/listar.php?doctor_id=${this.doctorId}&estado=asignada`, {
+            const asignadasResponse = await axios.get(`https://localhost/api/citas/listar.php?doctor_id=${this.doctorId}&estado=asignada`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             this.citasAsignadas = asignadasResponse.data;
           } else {
             // Cargar citas de libre asignación para la especialidad del doctor
-            const disponiblesResponse = await axios.get(`https://localhost/lgm/api/citas/listar.php?asignacion_libre=1&especialidad_id=${this.especialidadId}&estado=solicitada`, {
+            const disponiblesResponse = await axios.get(`https://localhost/api/citas/listar.php?asignacion_libre=1&especialidad_id=${this.especialidadId}&estado=solicitada`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             this.citasDisponibles = disponiblesResponse.data;
@@ -437,7 +437,7 @@
         try {
           const token = localStorage.getItem('token');
           
-          const response = await axios.put('https://localhost/lgm/api/citas/actualizar.php', {
+          const response = await axios.put('https://localhost/api/citas/actualizar.php', {
             cita_id: this.citaSeleccionada.id,
             fecha: this.programacion.fecha,
             hora: this.programacion.hora,
@@ -472,7 +472,7 @@
         try {
           const token = localStorage.getItem('token');
           
-          const response = await axios.put('https://localhost/lgm/api/citas/rechazar.php', {
+          const response = await axios.put('https://localhost/api/citas/rechazar.php', {
             cita_id: this.citaSeleccionada.id,
             motivo: this.motivo
           }, {
@@ -504,7 +504,7 @@
           const token = localStorage.getItem('token');
           
           // Primero tomar la cita
-          const tomarResponse = await axios.put('https://localhost/lgm/api/citas/tomar.php', {
+          const tomarResponse = await axios.put('https://localhost/api/citas/tomar.php', {
             cita_id: this.citaSeleccionada.id,
             doctor_id: this.doctorId
           }, {
@@ -513,7 +513,7 @@
           
           if (tomarResponse.data && tomarResponse.data.message) {
             // Luego programar la cita
-            const programarResponse = await axios.put('https://localhost/lgm/api/citas/actualizar.php', {
+            const programarResponse = await axios.put('https://localhost/api/citas/actualizar.php', {
               cita_id: this.citaSeleccionada.id,
               fecha: this.programacion.fecha,
               hora: this.programacion.hora,

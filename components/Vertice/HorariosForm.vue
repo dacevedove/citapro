@@ -187,7 +187,7 @@ export default {
     },
     loadDoctoresActivos() {
       this.isLoading = true;
-      axios.get('/lgm/api/vertice/listar_doctores.php')
+      axios.get('/api/vertice/listar_doctores.php')
         .then(response => {
           this.doctoresActivos = response.data.data.filter(d => d.activo == 1);
           
@@ -214,7 +214,7 @@ export default {
       const [startDate, endDate] = this.currentWeek.split('_');
       
       // Enviar semana seleccionada al backend
-      axios.get(`/lgm/api/vertice/listar_horarios.php?doctor_id=${this.selectedDoctorId}&fecha_inicio=${startDate}&fecha_fin=${endDate}`)
+      axios.get(`/api/vertice/listar_horarios.php?doctor_id=${this.selectedDoctorId}&fecha_inicio=${startDate}&fecha_fin=${endDate}`)
         .then(response => {
           console.log('Respuesta del servidor:', response.data);
           this.horarios = response.data.data || [];
@@ -274,7 +274,7 @@ export default {
         }
       }
       
-      axios.post('/lgm/api/vertice/crear_horario.php', horarioData)
+      axios.post('/api/vertice/crear_horario.php', horarioData)
         .then(() => {
           this.loadHorariosByWeek();
         })
@@ -297,7 +297,7 @@ export default {
       if (horarioToDelete) {
         this.isLoading = true;
         
-        axios.delete(`/lgm/api/vertice/eliminar_horario.php?id=${horarioToDelete.id}`)
+        axios.delete(`/api/vertice/eliminar_horario.php?id=${horarioToDelete.id}`)
           .then(() => {
             this.loadHorariosByWeek();
           })
@@ -318,7 +318,7 @@ export default {
       const previousWeek = this.availableWeeks[this.currentWeekIndex - 1].value;
       const [prevStart, prevEnd] = previousWeek.split('_');
       
-      axios.post('/lgm/api/vertice/copiar_semana.php', {
+      axios.post('/api/vertice/copiar_semana.php', {
         doctor_id: this.selectedDoctorId,
         semana_origen_inicio: prevStart,
         semana_origen_fin: prevEnd,
