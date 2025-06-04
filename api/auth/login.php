@@ -42,8 +42,28 @@ try {
     
     // Verificar si se encontró el usuario
     if (!$user) {
+        // Log detallado para debugging
+        error_log("USUARIO NO ENCONTRADO - Email buscado: " . $data->email);
+        
+        // Verificar cuántos usuarios hay en total
+        $countStmt = $conn->prepare("SELECT COUNT(*) as total FROM usuarios");
+        $countStmt->execute();
+        $count = $countStmt->fetch(PDO::FETCH_ASSOC);
+        error_log("Total de usuarios en BD: " . $count['total']);
+        
+        // Listar los primeros 3 emails para comparar
+        $listStmt = $conn->prepare("SELECT email FROM usuarios LIMIT 3");
+        $listStmt->execute();
+        $emails = $listStmt->fetchAll(PDO::FETCH_COLUMN);
+        error_log("Emails existentes: " . implode(', ', $emails));
+        
         http_response_code(401); // Unauthorized
-        echo json_encode(["error" => "Usuario no encontrado", "debug_email" => $data->email]);
+        echo json_encode([
+            "error" => "Usuario no encontrado", 
+            "email_buscado" => $data->email,
+            "total_usuarios" => $count['total'],
+            "emails_existentes" => $emails
+        ]);
         exit;
     }
     
