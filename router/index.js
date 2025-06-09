@@ -112,6 +112,13 @@ const routes = [
     meta: {
       requiresAuth: true, role: 'admin' }
   },
+  {
+    path: '/admin/Usuarios',
+    name: 'Usuarios',
+    component: Usuarioss,
+    meta: {
+      requiresAuth: true, role: 'admin' }
+  },
   // Rutas para doctor
   {
     path: '/doctor/dashboard',
