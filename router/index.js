@@ -115,7 +115,7 @@ const routes = [
   {
     path: '/admin/Usuarios',
     name: 'Usuarios',
-    component: Usuarioss,
+    component: Usuarios,
     meta: {
       requiresAuth: true, role: 'admin' }
   },
