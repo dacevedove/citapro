@@ -189,13 +189,13 @@
           const token = localStorage.getItem('token');
           
           if (this.activeTab === 'pending') {
-            const response = await axios.get('https://localhost/api/citas/listar-paciente.php?tipo=pendientes', {
+            const response = await axios.get('/api/citas/listar-paciente.php?tipo=pendientes', {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             
             this.citasPendientes = response.data;
           } else {
-            const response = await axios.get('https://localhost/api/citas/listar-paciente.php?tipo=historial', {
+            const response = await axios.get('/api/citas/listar-paciente.php?tipo=historial', {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             
@@ -250,7 +250,7 @@
         try {
           const token = localStorage.getItem('token');
           
-          const response = await axios.put('https://localhost/api/citas/cancelar-paciente.php', {
+          const response = await axios.put('/api/citas/cancelar-paciente.php', {
             cita_id: this.citaSeleccionada.id,
             motivo_cancelacion: this.motivoCancelacion
           }, {

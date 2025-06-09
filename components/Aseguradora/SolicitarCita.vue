@@ -228,7 +228,7 @@
     async cargarEspecialidades() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('https://localhost/api/doctores/especialidades.php', {
+        const response = await axios.get('/api/doctores/especialidades.php', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         this.especialidades = response.data;
@@ -246,7 +246,7 @@
       try {
         this.titular = null;
         const token = localStorage.getItem('token');
-        const response = await axios.get(`https://localhost/api/titulares/buscar.php?cedula=${this.cedulaTitular}`, {
+        const response = await axios.get(`/api/titulares/buscar.php?cedula=${this.cedulaTitular}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -279,7 +279,7 @@
       try {
         this.paciente = null;
         const token = localStorage.getItem('token');
-        const response = await axios.get(`https://localhost/api/pacientes/buscar.php?cedula=${this.cedulaPaciente}`, {
+        const response = await axios.get(`/api/pacientes/buscar.php?cedula=${this.cedulaPaciente}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -306,7 +306,7 @@
         
         if (!titularId) {
           // Crear nuevo titular
-          const titularResponse = await axios.post('https://localhost/api/titulares/crear.php', 
+          const titularResponse = await axios.post('/api/titulares/crear.php', 
             {
               ...this.nuevoTitular,
               es_paciente: this.esTitularPaciente
@@ -325,7 +325,7 @@
         if (!pacienteId) {
           if (this.esTitularPaciente) {
             // Si el paciente es el titular, buscar el paciente asociado
-            const pacienteResponse = await axios.get(`https://localhost/api/pacientes/buscar.php?titular_id=${titularId}&es_titular=1`, {
+            const pacienteResponse = await axios.get(`/api/pacientes/buscar.php?titular_id=${titularId}&es_titular=1`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             
@@ -334,7 +334,7 @@
             }
           } else {
             // Crear nuevo paciente
-            const pacienteResponse = await axios.post('https://localhost/api/pacientes/crear.php',
+            const pacienteResponse = await axios.post('/api/pacientes/crear.php',
               {
                 ...this.nuevoPaciente,
                 titular_id: titularId,
@@ -350,7 +350,7 @@
         }
         
         // 3. Crear la cita
-        const citaResponse = await axios.post('https://localhost/api/citas/crear.php',
+        const citaResponse = await axios.post('/api/citas/crear.php',
           {
             paciente_id: pacienteId,
             especialidad_id: this.cita.especialidad_id,
