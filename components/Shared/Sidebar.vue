@@ -74,6 +74,12 @@
               <span>Pacientes</span>
             </router-link>
           </li>
+          <li>
+            <router-link to="/admin/usuarios" class="menu-item">
+              <i class="fas fa-user-cog"></i>
+              <span>Usuarios</span>
+            </router-link>
+          </li>
         </ul>
       </div>
       

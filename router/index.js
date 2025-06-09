@@ -17,6 +17,7 @@ import Doctores from '@components/Admin/Doctores.vue';
 import Aseguradoras from '@components/Admin/Aseguradoras.vue';
 import Pacientes from '@components/Admin/Pacientes.vue';
 import Especialidades from '@components/Admin/Especialidades.vue';
+import Usuarios from '@components/Admin/Usuarios.vue';
 import Perfil from '@components/Shared/Perfil.vue';
 
 const routes = [
