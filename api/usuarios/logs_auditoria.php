@@ -92,24 +92,127 @@ try {
         $log['datos_nuevos'] = $log['datos_nuevos'] ? json_decode($log['datos_nuevos'], true) : null;
         
         // Crear resumen legible de los cambios
-        $log['resumen_cambios'] = $log['accion'];
-        if ($log['datos_anteriores'] && $log['datos_nuevos']) {
+        $log['resumen_cambios'] = generarResumenCambios($log['accion'], $log['datos_anteriores'], $log['datos_nuevos']);
+    }
+    
+    http_response_code(200);
+    echo json_encode($logs);
+    
+} catch(PDOException $e) {
+    http_response_code(500);
+    echo json_encode(["error" => "Error en el servidor: " . $e->getMessage()]);
+}
+
+// Función para generar resúmenes legibles de los cambios
+function generarResumenCambios($accion, $datos_anteriores, $datos_nuevos) {
+    switch ($accion) {
+        case 'INSERT':
+            return 'Usuario creado en el sistema';
+            
+        case 'UPDATE_PASS':
+            if (isset($datos_nuevos['password_changed_at'])) {
+                $fecha = new DateTime($datos_nuevos['password_changed_at']);
+                return 'Cambio de contraseña el ' . $fecha->format('d/m/Y') . ' a las ' . $fecha->format('H:i');
+            }
+            return 'Cambio de contraseña';
+            
+        case 'RESET_PASS':
+            if (isset($datos_nuevos['reset_at'])) {
+                $fecha = new DateTime($datos_nuevos['reset_at']);
+                return 'Contraseña reseteada el ' . $fecha->format('d/m/Y') . ' a las ' . $fecha->format('H:i');
+            }
+            return 'Contraseña reseteada y generada temporalmente';
+            
+        case 'UPDATE_EMAIL':
+            if (isset($datos_anteriores['email']) && isset($datos_nuevos['email'])) {
+                return 'Email cambiado de "' . $datos_anteriores['email'] . '" a "' . $datos_nuevos['email'] . '"';
+            }
+            return 'Email actualizado';
+            
+        case 'UPDATE_DATOS':
+        case 'UPDATE':
             $cambios = [];
-            foreach ($log['datos_nuevos'] as $campo => $nuevo_valor) {
-                if (isset($log['datos_anteriores'][$campo])) {
-                    $valor_anterior = $log['datos_anteriores'][$campo];
+            
+            if (!$datos_anteriores || !$datos_nuevos) {
+                return 'Datos actualizados';
+            }
+            
+            foreach ($datos_nuevos as $campo => $nuevo_valor) {
+                if (isset($datos_anteriores[$campo])) {
+                    $valor_anterior = $datos_anteriores[$campo];
                     if ($valor_anterior != $nuevo_valor) {
-                        $cambios[] = ucfirst($campo) . ": '{$valor_anterior}' → '{$nuevo_valor}'";
+                        $cambios[] = generarCambioLegible($campo, $valor_anterior, $nuevo_valor);
                     }
                 } else {
-                    $cambios[] = ucfirst($campo) . ": '{$nuevo_valor}'";
+                    $cambios[] = generarCambioLegible($campo, null, $nuevo_valor);
                 }
             }
-            if (!empty($cambios)) {
-                $log['resumen_cambios'] = implode(', ', $cambios);
+            
+            if (empty($cambios)) {
+                return 'Datos actualizados';
             }
-        }
+            
+            return implode(', ', $cambios);
+            
+        default:
+            return 'Acción: ' . $accion;
     }
+}
+
+// Función para generar descripciones legibles de cambios individuales
+function generarCambioLegible($campo, $valor_anterior, $nuevo_valor) {
+    switch ($campo) {
+        case 'nombre':
+            return $valor_anterior ? 
+                "Nombre cambiado de '$valor_anterior' a '$nuevo_valor'" : 
+                "Nombre establecido como '$nuevo_valor'";
+                
+        case 'apellido':
+            return $valor_anterior ? 
+                "Apellido cambiado de '$valor_anterior' a '$nuevo_valor'" : 
+                "Apellido establecido como '$nuevo_valor'";
+                
+        case 'telefono':
+            return $valor_anterior ? 
+                "Teléfono cambiado de '$valor_anterior' a '$nuevo_valor'" : 
+                "Teléfono establecido como '$nuevo_valor'";
+                
+        case 'role':
+            $roles = [
+                'admin' => 'Administrador',
+                'doctor' => 'Doctor',
+                'aseguradora' => 'Aseguradora',
+                'paciente' => 'Paciente',
+                'vertice' => 'Vértice'
+            ];
+            
+            $rol_anterior = $roles[$valor_anterior] ?? $valor_anterior;
+            $rol_nuevo = $roles[$nuevo_valor] ?? $nuevo_valor;
+            
+            return "Rol cambiado de '$rol_anterior' a '$rol_nuevo'";
+            
+        case 'esta_activo':
+            if ($nuevo_valor == 1 || $nuevo_valor === true) {
+                return 'Usuario activado';
+            } else {
+                return 'Usuario desactivado';
+            }
+            
+        case 'email':
+            return $valor_anterior ? 
+                "Email cambiado de '$valor_anterior' a '$nuevo_valor'" : 
+                "Email establecido como '$nuevo_valor'";
+                
+        case 'password_changed':
+            return 'Contraseña modificada';
+            
+        case 'password_reset':
+            return 'Contraseña reseteada';
+            
+        default:
+            return ucfirst($campo) . " actualizado";
+    }
+}
     
     http_response_code(200);
     echo json_encode($logs);

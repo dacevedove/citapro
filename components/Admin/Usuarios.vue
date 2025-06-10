@@ -480,9 +480,9 @@
                     <span class="log-accion">{{ formatAccion(log.accion) }}</span>
                   </div>
                   <div class="log-body">
-                    <p><strong>Administrador:</strong> {{ log.admin_completo }}</p>
-                    <p><strong>Cambios:</strong> {{ log.resumen_cambios }}</p>
-                    <p v-if="log.direccion_ip"><strong>IP:</strong> {{ log.direccion_ip }}</p>
+                    <p class="log-admin"><strong>Administrador:</strong> {{ log.admin_completo }}</p>
+                    <p class="log-cambios"><strong>Detalles:</strong> {{ log.resumen_cambios }}</p>
+                    <p v-if="log.direccion_ip" class="log-ip"><strong>Desde IP:</strong> {{ log.direccion_ip }}</p>
                   </div>
                 </div>
               </div>
@@ -703,7 +703,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'actualizar_datos',
           nombre: this.usuarioEdit.nombre,
@@ -744,7 +744,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'cambiar_email',
           nuevo_email: this.nuevoEmail
@@ -788,7 +788,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'cambiar_password',
           nueva_password: this.nuevaPassword
@@ -821,7 +821,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'resetear_password'
         }, {
@@ -873,7 +873,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        await axios.post('/api/usuarios/editar_usuario.php', {
+        await axios.post('/api/usuarios/editar_completo.php', {
           user_id: usuario.id,
           accion: 'actualizar_datos',
           role: usuario.role,
@@ -902,19 +902,19 @@ export default {
     
     formatAccion(accion) {
       const acciones = {
-        'INSERT': 'Creación',
+        'INSERT': 'Creación de usuario',
         'UPDATE_DATOS': 'Actualización de datos',
         'UPDATE_EMAIL': 'Cambio de email',
         'UPDATE_PASS': 'Cambio de contraseña',
         'RESET_PASS': 'Reseteo de contraseña',
-        'UPDATE': 'Actualización',
+        'UPDATE': 'Actualización general',
         // Mantener compatibilidad con nombres anteriores
         'UPDATE_ACTUALIZAR_DATOS': 'Actualización de datos',
         'UPDATE_CAMBIAR_EMAIL': 'Cambio de email',
         'UPDATE_CAMBIAR_PASSWORD': 'Cambio de contraseña',
         'UPDATE_RESETEAR_PASSWORD': 'Reseteo de contraseña'
       };
-      return acciones[accion] || accion;
+      return acciones[accion] || 'Modificación';
     },
     
     getRolClass(role) {
@@ -1351,6 +1351,25 @@ h1 {
 
 .log-body p {
   margin: 4px 0;
+}
+
+.log-admin {
+  color: #495057;
+  font-size: 12px;
+}
+
+.log-cambios {
+  color: #212529;
+  font-weight: 500;
+  background-color: #e9ecef;
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.log-ip {
+  color: #6c757d;
+  font-size: 11px;
 }
 
 .loading-small {
