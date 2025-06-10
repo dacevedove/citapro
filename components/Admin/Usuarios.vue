@@ -101,7 +101,7 @@
             <td>{{ usuario.info_adicional || '-' }}</td>
             <td>
               <div class="action-buttons">
-                <button @click="editarUsuario(usuario)" class="btn-icon" title="Editar rol">
+                <button @click="editarUsuario(usuario)" class="btn-icon" title="Editar usuario">
                   <i class="fas fa-user-cog"></i>
                 </button>
                 <button 
@@ -498,25 +498,6 @@
           </div>
         </div>
       </div>
-    }</div>
-              <small v-if="usuarioEdit.id === currentUserId" class="text-muted">
-                No puede desactivarse a sí mismo
-              </small>
-            </div>
-            
-            <div v-if="error" class="alert alert-danger">
-              {{ error }}
-            </div>
-            
-            <div class="modal-footer">
-              <button type="button" @click="cerrarModalEditar" class="btn btn-outline">Cancelar</button>
-              <button type="submit" class="btn btn-primary" :disabled="guardando">
-                {{ guardando ? 'Actualizando...' : 'Actualizar' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -561,7 +542,7 @@ export default {
         role: '',
         esta_activo: true
       },
-      tipoEdicion: 'datos', // datos, email, password, logs
+      tipoEdicion: 'datos',
       nuevoEmail: '',
       nuevaPassword: '',
       confirmarPassword: '',
@@ -589,7 +570,6 @@ export default {
         const token = localStorage.getItem('token');
         let url = '/api/usuarios/listar.php';
         
-        // Aplicar filtros
         const params = new URLSearchParams();
         if (this.filtros.busqueda) {
           params.append('busqueda', this.filtros.busqueda);
@@ -677,14 +657,12 @@ export default {
     },
     
     async crearUsuario() {
-      // Validar formulario
       if (!this.nuevoUsuario.nombre || !this.nuevoUsuario.apellido || !this.nuevoUsuario.cedula || 
           !this.nuevoUsuario.email || !this.nuevoUsuario.role || !this.nuevoUsuario.password) {
         this.error = "Por favor, complete todos los campos obligatorios.";
         return;
       }
       
-      // Validar contraseñas
       if (this.nuevoUsuario.password.length < 8) {
         this.error = "La contraseña debe tener al menos 8 caracteres.";
         return;
@@ -725,7 +703,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'actualizar_datos',
           nombre: this.usuarioEdit.nombre,
@@ -766,7 +744,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'cambiar_email',
           nuevo_email: this.nuevoEmail
@@ -810,7 +788,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'cambiar_password',
           nueva_password: this.nuevaPassword
@@ -843,7 +821,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'resetear_password'
         }, {
@@ -895,7 +873,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        await axios.post('/api/usuarios/editar_usuario.php', {
+        await axios.post('/api/usuarios/editar_completo.php', {
           user_id: usuario.id,
           accion: 'actualizar_datos',
           role: usuario.role,
@@ -1288,43 +1266,6 @@ h1 {
   font-size: 12px;
 }
 
-.alert {
-  padding: 12px 15px;
-  border-radius: 4px;
-  margin-bottom: 15px;
-}
-
-.alert-danger {
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
-}
-
-.btn {
-  padding: 10px 15px;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background-color: var(--primary-color);
-  border: 1px solid var(--primary-color);
-  color: white;
-}
-
-.btn-outline {
-  background-color: transparent;
-  border: 1px solid #ced4da;
-  color: var(--dark-color);
-}
-
-.btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
 /* Tabs de edición */
 .edit-tabs {
   display: flex;
@@ -1448,7 +1389,27 @@ h1 {
   color: #721c24;
 }
 
-/* Botones de acción específicos */
+/* Botones */
+.btn {
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  color: white;
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid #ced4da;
+  color: var(--dark-color);
+}
+
 .btn-warning {
   background-color: #ffc107;
   border: 1px solid #ffc107;
@@ -1471,8 +1432,23 @@ h1 {
   border-color: #bd2130;
 }
 
-/* Responsive para tabs */
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .filter-options {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
   .edit-tabs {
     flex-wrap: wrap;
   }
