@@ -265,37 +265,240 @@
             <p>{{ usuarioEdit.email }} - {{ usuarioEdit.cedula }}</p>
           </div>
           
-          <form @submit.prevent="actualizarUsuario">
-            <div class="form-group">
-              <label for="edit-role">Rol:</label>
-              <select 
-                id="edit-role" 
-                v-model="usuarioEdit.role" 
-                required
-                class="form-control"
-                :disabled="usuarioEdit.id === currentUserId"
-              >
-                <option value="admin">Administrador</option>
-                <option value="doctor">Doctor</option>
-                <option value="aseguradora">Aseguradora</option>
-                <option value="paciente">Paciente</option>
-                <option value="vertice">Vértice</option>
-              </select>
-              <small v-if="usuarioEdit.id === currentUserId" class="text-muted">
-                No puede cambiar su propio rol
-              </small>
-            </div>
-            
-            <div class="form-group">
-              <div class="checkbox-group">
+          <!-- Tabs para diferentes tipos de edición -->
+          <div class="edit-tabs">
+            <button 
+              :class="['tab-btn', tipoEdicion === 'datos' ? 'active' : '']" 
+              @click="tipoEdicion = 'datos'"
+            >
+              Datos Básicos
+            </button>
+            <button 
+              :class="['tab-btn', tipoEdicion === 'email' ? 'active' : '']" 
+              @click="tipoEdicion = 'email'"
+            >
+              Cambiar Email
+            </button>
+            <button 
+              :class="['tab-btn', tipoEdicion === 'password' ? 'active' : '']" 
+              @click="tipoEdicion = 'password'"
+            >
+              Cambiar Contraseña
+            </button>
+            <button 
+              :class="['tab-btn', tipoEdicion === 'logs' ? 'active' : '']" 
+              @click="tipoEdicion = 'logs'; cargarLogsUsuario()"
+            >
+              Historial
+            </button>
+          </div>
+          
+          <!-- Datos básicos -->
+          <div v-if="tipoEdicion === 'datos'">
+            <form @submit.prevent="actualizarDatos">
+              <div class="form-group">
+                <label for="edit-nombre">Nombre:</label>
                 <input 
-                  type="checkbox" 
-                  id="edit_esta_activo" 
-                  v-model="usuarioEdit.esta_activo"
+                  type="text" 
+                  id="edit-nombre" 
+                  v-model="usuarioEdit.nombre" 
+                  required
+                  class="form-control"
+                >
+              </div>
+              
+              <div class="form-group">
+                <label for="edit-apellido">Apellido:</label>
+                <input 
+                  type="text" 
+                  id="edit-apellido" 
+                  v-model="usuarioEdit.apellido" 
+                  required
+                  class="form-control"
+                >
+              </div>
+              
+              <div class="form-group">
+                <label for="edit-telefono">Teléfono:</label>
+                <input 
+                  type="text" 
+                  id="edit-telefono" 
+                  v-model="usuarioEdit.telefono" 
+                  class="form-control"
+                >
+              </div>
+              
+              <div class="form-group">
+                <label for="edit-role">Rol:</label>
+                <select 
+                  id="edit-role" 
+                  v-model="usuarioEdit.role" 
+                  required
+                  class="form-control"
                   :disabled="usuarioEdit.id === currentUserId"
                 >
-                <label for="edit_esta_activo">Usuario activo</label>
+                  <option value="admin">Administrador</option>
+                  <option value="doctor">Doctor</option>
+                  <option value="aseguradora">Aseguradora</option>
+                  <option value="paciente">Paciente</option>
+                  <option value="vertice">Vértice</option>
+                </select>
+                <small v-if="usuarioEdit.id === currentUserId" class="text-muted">
+                  No puede cambiar su propio rol
+                </small>
               </div>
+              
+              <div class="form-group">
+                <div class="checkbox-group">
+                  <input 
+                    type="checkbox" 
+                    id="edit_esta_activo" 
+                    v-model="usuarioEdit.esta_activo"
+                    :disabled="usuarioEdit.id === currentUserId"
+                  >
+                  <label for="edit_esta_activo">Usuario activo</label>
+                </div>
+                <small v-if="usuarioEdit.id === currentUserId" class="text-muted">
+                  No puede desactivarse a sí mismo
+                </small>
+              </div>
+              
+              <div class="modal-footer">
+                <button type="button" @click="cerrarModalEditar" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary" :disabled="guardando">
+                  {{ guardando ? 'Actualizando...' : 'Actualizar Datos' }}
+                </button>
+              </div>
+            </form>
+          </div>
+          
+          <!-- Cambiar Email -->
+          <div v-if="tipoEdicion === 'email'">
+            <form @submit.prevent="cambiarEmail">
+              <div class="form-group">
+                <label for="email-actual">Email actual:</label>
+                <input 
+                  type="email" 
+                  id="email-actual" 
+                  :value="usuarioEdit.email" 
+                  disabled
+                  class="form-control"
+                >
+              </div>
+              
+              <div class="form-group">
+                <label for="nuevo-email">Nuevo email:</label>
+                <input 
+                  type="email" 
+                  id="nuevo-email" 
+                  v-model="nuevoEmail" 
+                  required
+                  class="form-control"
+                  :disabled="usuarioEdit.id === currentUserId"
+                >
+                <small v-if="usuarioEdit.id === currentUserId" class="text-muted">
+                  No puede cambiar su propio email desde aquí
+                </small>
+              </div>
+              
+              <div class="modal-footer">
+                <button type="button" @click="cerrarModalEditar" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-warning" :disabled="guardando || usuarioEdit.id === currentUserId">
+                  {{ guardando ? 'Cambiando...' : 'Cambiar Email' }}
+                </button>
+              </div>
+            </form>
+          </div>
+          
+          <!-- Cambiar Contraseña -->
+          <div v-if="tipoEdicion === 'password'">
+            <form @submit.prevent="cambiarPassword">
+              <div class="form-group">
+                <label for="nueva-password">Nueva contraseña:</label>
+                <input 
+                  type="password" 
+                  id="nueva-password" 
+                  v-model="nuevaPassword" 
+                  required
+                  class="form-control"
+                  placeholder="Mínimo 8 caracteres"
+                  minlength="8"
+                >
+              </div>
+              
+              <div class="form-group">
+                <label for="confirmar-password">Confirmar contraseña:</label>
+                <input 
+                  type="password" 
+                  id="confirmar-password" 
+                  v-model="confirmarPassword" 
+                  required
+                  class="form-control"
+                  placeholder="Repita la nueva contraseña"
+                  minlength="8"
+                >
+              </div>
+              
+              <div class="password-actions">
+                <button type="submit" class="btn btn-warning" :disabled="guardando">
+                  {{ guardando ? 'Cambiando...' : 'Cambiar Contraseña' }}
+                </button>
+                <button type="button" @click="resetearPassword" class="btn btn-danger" :disabled="guardando">
+                  {{ guardando ? 'Reseteando...' : 'Resetear Contraseña' }}
+                </button>
+              </div>
+              
+              <div v-if="passwordTemporal" class="alert alert-info">
+                <strong>Contraseña temporal generada:</strong> {{ passwordTemporal }}
+                <br><small>Guarde esta contraseña y compártala de forma segura con el usuario.</small>
+              </div>
+              
+              <div class="modal-footer">
+                <button type="button" @click="cerrarModalEditar" class="btn btn-outline">Cancelar</button>
+              </div>
+            </form>
+          </div>
+          
+          <!-- Historial de cambios -->
+          <div v-if="tipoEdicion === 'logs'">
+            <div class="logs-container">
+              <h4>Historial de cambios</h4>
+              
+              <div v-if="cargandoLogs" class="loading-small">
+                <div class="spinner-small"></div>
+                <p>Cargando historial...</p>
+              </div>
+              
+              <div v-else-if="logsUsuario.length === 0" class="empty-logs">
+                <p>No hay cambios registrados para este usuario.</p>
+              </div>
+              
+              <div v-else class="logs-list">
+                <div v-for="log in logsUsuario" :key="log.id" class="log-item">
+                  <div class="log-header">
+                    <span class="log-fecha">{{ log.fecha_accion }}</span>
+                    <span class="log-accion">{{ formatAccion(log.accion) }}</span>
+                  </div>
+                  <div class="log-body">
+                    <p><strong>Administrador:</strong> {{ log.admin_completo }}</p>
+                    <p><strong>Cambios:</strong> {{ log.resumen_cambios }}</p>
+                    <p v-if="log.direccion_ip"><strong>IP:</strong> {{ log.direccion_ip }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="modal-footer">
+              <button type="button" @click="cerrarModalEditar" class="btn btn-outline">Cerrar</button>
+            </div>
+          </div>
+          
+          <div v-if="error" class="alert alert-danger">
+            {{ error }}
+          </div>
+        </div>
+      </div>
+    }</div>
               <small v-if="usuarioEdit.id === currentUserId" class="text-muted">
                 No puede desactivarse a sí mismo
               </small>
@@ -354,9 +557,17 @@ export default {
         apellido: '',
         email: '',
         cedula: '',
+        telefono: '',
         role: '',
         esta_activo: true
-      }
+      },
+      tipoEdicion: 'datos', // datos, email, password, logs
+      nuevoEmail: '',
+      nuevaPassword: '',
+      confirmarPassword: '',
+      passwordTemporal: '',
+      logsUsuario: [],
+      cargandoLogs: false
     }
   },
   computed: {
@@ -447,15 +658,22 @@ export default {
         apellido: usuario.apellido,
         email: usuario.email,
         cedula: usuario.cedula,
+        telefono: usuario.telefono || '',
         role: usuario.role,
         esta_activo: usuario.esta_activo
       };
+      this.tipoEdicion = 'datos';
+      this.nuevoEmail = '';
+      this.nuevaPassword = '';
+      this.confirmarPassword = '';
+      this.passwordTemporal = '';
       this.error = null;
       this.mostrarModalEditar = true;
     },
     
     cerrarModalEditar() {
       this.mostrarModalEditar = false;
+      this.logsUsuario = [];
     },
     
     async crearUsuario() {
@@ -500,31 +718,166 @@ export default {
       }
     },
     
-    async actualizarUsuario() {
+    async actualizarDatos() {
       this.guardando = true;
       this.error = null;
       
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/actualizar_rol.php', {
+        const response = await axios.post('/api/usuarios/editar_usuario.php', {
           user_id: this.usuarioEdit.id,
-          nuevo_role: this.usuarioEdit.role,
+          accion: 'actualizar_datos',
+          nombre: this.usuarioEdit.nombre,
+          apellido: this.usuarioEdit.apellido,
+          telefono: this.usuarioEdit.telefono,
+          role: this.usuarioEdit.role,
           esta_activo: this.usuarioEdit.esta_activo
         }, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (response.data && response.data.success) {
-          this.cerrarModalEditar();
           this.cargarUsuarios();
-          alert('Usuario actualizado correctamente');
+          alert('Datos actualizados correctamente');
         }
       } catch (error) {
-        console.error('Error al actualizar usuario:', error);
-        this.error = error.response?.data?.error || "Error al actualizar usuario. Por favor, intente nuevamente.";
+        console.error('Error al actualizar datos:', error);
+        this.error = error.response?.data?.error || "Error al actualizar datos.";
       } finally {
         this.guardando = false;
+      }
+    },
+    
+    async cambiarEmail() {
+      if (!this.nuevoEmail) {
+        this.error = "Ingrese el nuevo email";
+        return;
+      }
+      
+      if (this.nuevoEmail === this.usuarioEdit.email) {
+        this.error = "El nuevo email debe ser diferente al actual";
+        return;
+      }
+      
+      this.guardando = true;
+      this.error = null;
+      
+      try {
+        const token = localStorage.getItem('token');
+        
+        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+          user_id: this.usuarioEdit.id,
+          accion: 'cambiar_email',
+          nuevo_email: this.nuevoEmail
+        }, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.data && response.data.success) {
+          this.usuarioEdit.email = this.nuevoEmail;
+          this.nuevoEmail = '';
+          this.cargarUsuarios();
+          alert('Email cambiado correctamente');
+        }
+      } catch (error) {
+        console.error('Error al cambiar email:', error);
+        this.error = error.response?.data?.error || "Error al cambiar email.";
+      } finally {
+        this.guardando = false;
+      }
+    },
+    
+    async cambiarPassword() {
+      if (!this.nuevaPassword || !this.confirmarPassword) {
+        this.error = "Complete ambos campos de contraseña";
+        return;
+      }
+      
+      if (this.nuevaPassword.length < 8) {
+        this.error = "La contraseña debe tener al menos 8 caracteres";
+        return;
+      }
+      
+      if (this.nuevaPassword !== this.confirmarPassword) {
+        this.error = "Las contraseñas no coinciden";
+        return;
+      }
+      
+      this.guardando = true;
+      this.error = null;
+      
+      try {
+        const token = localStorage.getItem('token');
+        
+        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+          user_id: this.usuarioEdit.id,
+          accion: 'cambiar_password',
+          nueva_password: this.nuevaPassword
+        }, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.data && response.data.success) {
+          this.nuevaPassword = '';
+          this.confirmarPassword = '';
+          alert('Contraseña cambiada correctamente');
+        }
+      } catch (error) {
+        console.error('Error al cambiar contraseña:', error);
+        this.error = error.response?.data?.error || "Error al cambiar contraseña.";
+      } finally {
+        this.guardando = false;
+      }
+    },
+    
+    async resetearPassword() {
+      if (!confirm('¿Está seguro de que desea resetear la contraseña? Se generará una contraseña temporal.')) {
+        return;
+      }
+      
+      this.guardando = true;
+      this.error = null;
+      this.passwordTemporal = '';
+      
+      try {
+        const token = localStorage.getItem('token');
+        
+        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+          user_id: this.usuarioEdit.id,
+          accion: 'resetear_password'
+        }, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.data && response.data.success) {
+          this.passwordTemporal = response.data.password_temporal;
+          alert('Contraseña reseteada correctamente');
+        }
+      } catch (error) {
+        console.error('Error al resetear contraseña:', error);
+        this.error = error.response?.data?.error || "Error al resetear contraseña.";
+      } finally {
+        this.guardando = false;
+      }
+    },
+    
+    async cargarLogsUsuario() {
+      this.cargandoLogs = true;
+      
+      try {
+        const token = localStorage.getItem('token');
+        
+        const response = await axios.get(`/api/usuarios/logs_auditoria.php?usuario_id=${this.usuarioEdit.id}&limite=20`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        this.logsUsuario = response.data;
+      } catch (error) {
+        console.error('Error al cargar logs:', error);
+        this.logsUsuario = [];
+      } finally {
+        this.cargandoLogs = false;
       }
     },
     
@@ -542,9 +895,10 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        await axios.post('/api/usuarios/actualizar_rol.php', {
+        await axios.post('/api/usuarios/editar_usuario.php', {
           user_id: usuario.id,
-          nuevo_role: usuario.role,
+          accion: 'actualizar_datos',
+          role: usuario.role,
           esta_activo: !usuario.esta_activo
         }, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -566,6 +920,17 @@ export default {
         'vertice': 'Vértice'
       };
       return roles[role] || role;
+    },
+    
+    formatAccion(accion) {
+      const acciones = {
+        'INSERT': 'Creación',
+        'UPDATE_ACTUALIZAR_DATOS': 'Actualización de datos',
+        'UPDATE_CAMBIAR_EMAIL': 'Cambio de email',
+        'UPDATE_CAMBIAR_PASSWORD': 'Cambio de contraseña',
+        'UPDATE_RESETEAR_PASSWORD': 'Reseteo de contraseña'
+      };
+      return acciones[accion] || accion;
     },
     
     getRolClass(role) {
@@ -960,17 +1325,165 @@ h1 {
   cursor: not-allowed;
 }
 
-/* Responsive */
+/* Tabs de edición */
+.edit-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.edit-tabs .tab-btn {
+  padding: 10px 15px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: #6c757d;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.edit-tabs .tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.edit-tabs .tab-btn:hover {
+  color: var(--primary-color);
+}
+
+/* Acciones de contraseña */
+.password-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* Contenedor de logs */
+.logs-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.logs-list {
+  space-y: 10px;
+}
+
+.log-item {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.log-fecha {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.log-accion {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.log-body {
+  font-size: 13px;
+}
+
+.log-body p {
+  margin: 4px 0;
+}
+
+.loading-small {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+.empty-logs {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+}
+
+/* Alerts */
+.alert {
+  padding: 12px 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.alert-info {
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  color: #0c5460;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+/* Botones de acción específicos */
+.btn-warning {
+  background-color: #ffc107;
+  border: 1px solid #ffc107;
+  color: #212529;
+}
+
+.btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  border: 1px solid #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+/* Responsive para tabs */
 @media (max-width: 768px) {
-  .form-row {
-    flex-direction: column;
-    gap: 0;
+  .edit-tabs {
+    flex-wrap: wrap;
   }
   
-  .filter-options {
+  .edit-tabs .tab-btn {
+    flex: 1;
+    min-width: 120px;
+  }
+  
+  .password-actions {
     flex-direction: column;
-    align-items: stretch;
   }
 }
 </style>
-        
