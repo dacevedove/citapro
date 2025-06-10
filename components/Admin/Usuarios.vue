@@ -703,7 +703,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'actualizar_datos',
           nombre: this.usuarioEdit.nombre,
@@ -744,7 +744,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'cambiar_email',
           nuevo_email: this.nuevoEmail
@@ -788,7 +788,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'cambiar_password',
           nueva_password: this.nuevaPassword
@@ -821,7 +821,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const response = await axios.post('/api/usuarios/editar_completo.php', {
           user_id: this.usuarioEdit.id,
           accion: 'resetear_password'
         }, {
@@ -845,14 +845,24 @@ export default {
       
       try {
         const token = localStorage.getItem('token');
+        const url = `/api/usuarios/logs_auditoria.php?usuario_id=${this.usuarioEdit.id}&limite=20`;
         
-        const response = await axios.get(`/api/usuarios/logs_auditoria.php?usuario_id=${this.usuarioEdit.id}&limite=20`, {
+        console.log('Cargando logs para usuario:', this.usuarioEdit.id);
+        console.log('URL:', url);
+        
+        const response = await axios.get(url, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
+        console.log('Respuesta de logs:', response.data);
         this.logsUsuario = response.data;
+        
+        if (this.logsUsuario.length === 0) {
+          console.log('No se encontraron logs para este usuario');
+        }
       } catch (error) {
         console.error('Error al cargar logs:', error);
+        console.error('Response data:', error.response?.data);
         this.logsUsuario = [];
       } finally {
         this.cargandoLogs = false;
@@ -873,7 +883,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        await axios.post('/api/usuarios/editar_usuario.php', {
+        await axios.post('/api/usuarios/editar_completo.php', {
           user_id: usuario.id,
           accion: 'actualizar_datos',
           role: usuario.role,
