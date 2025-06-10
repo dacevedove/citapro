@@ -37,6 +37,9 @@ try {
     $fecha_hasta = isset($_GET['fecha_hasta']) ? $_GET['fecha_hasta'] : null;
     $limite = isset($_GET['limite']) ? intval($_GET['limite']) : 50;
     
+    // Log para debug
+    error_log("Logs audit request - usuario_id: " . $usuario_id . ", accion: " . $accion);
+    
     // Construir consulta SQL
     $sql = "SELECT l.*, 
                    u1.nombre as admin_nombre, u1.apellido as admin_apellido,
@@ -70,6 +73,10 @@ try {
     
     $sql .= " ORDER BY l.fecha_accion DESC LIMIT :limite";
     
+    // Log para debug
+    error_log("SQL Query: " . $sql);
+    error_log("Params: " . json_encode($params));
+    
     // Ejecutar consulta
     $stmt = $conn->prepare($sql);
     
@@ -80,6 +87,9 @@ try {
     
     $stmt->execute();
     $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Log para debug
+    error_log("Found " . count($logs) . " logs");
     
     // Formatear datos para mejor legibilidad
     foreach ($logs as &$log) {
@@ -99,6 +109,7 @@ try {
     echo json_encode($logs);
     
 } catch(PDOException $e) {
+    error_log("Error in logs_auditoria.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(["error" => "Error en el servidor: " . $e->getMessage()]);
 }
@@ -111,15 +122,23 @@ function generarResumenCambios($accion, $datos_anteriores, $datos_nuevos) {
             
         case 'UPDATE_PASS':
             if (isset($datos_nuevos['password_changed_at'])) {
-                $fecha = new DateTime($datos_nuevos['password_changed_at']);
-                return 'Cambio de contraseña el ' . $fecha->format('d/m/Y') . ' a las ' . $fecha->format('H:i');
+                try {
+                    $fecha = new DateTime($datos_nuevos['password_changed_at']);
+                    return 'Cambio de contraseña el ' . $fecha->format('d/m/Y') . ' a las ' . $fecha->format('H:i');
+                } catch (Exception $e) {
+                    return 'Cambio de contraseña';
+                }
             }
             return 'Cambio de contraseña';
             
         case 'RESET_PASS':
             if (isset($datos_nuevos['reset_at'])) {
-                $fecha = new DateTime($datos_nuevos['reset_at']);
-                return 'Contraseña reseteada el ' . $fecha->format('d/m/Y') . ' a las ' . $fecha->format('H:i');
+                try {
+                    $fecha = new DateTime($datos_nuevos['reset_at']);
+                    return 'Contraseña reseteada el ' . $fecha->format('d/m/Y') . ' a las ' . $fecha->format('H:i');
+                } catch (Exception $e) {
+                    return 'Contraseña reseteada';
+                }
             }
             return 'Contraseña reseteada y generada temporalmente';
             
@@ -203,6 +222,13 @@ function generarCambioLegible($campo, $valor_anterior, $nuevo_valor) {
                 "Email cambiado de '$valor_anterior' a '$nuevo_valor'" : 
                 "Email establecido como '$nuevo_valor'";
                 
+        case 'email_verificado':
+            if ($nuevo_valor == 0 || $nuevo_valor === false) {
+                return 'Email marcado como no verificado';
+            } else {
+                return 'Email verificado';
+            }
+                
         case 'password_changed':
             return 'Contraseña modificada';
             
@@ -212,13 +238,5 @@ function generarCambioLegible($campo, $valor_anterior, $nuevo_valor) {
         default:
             return ucfirst($campo) . " actualizado";
     }
-}
-    
-    http_response_code(200);
-    echo json_encode($logs);
-    
-} catch(PDOException $e) {
-    http_response_code(500);
-    echo json_encode(["error" => "Error en el servidor: " . $e->getMessage()]);
 }
 ?>

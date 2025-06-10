@@ -462,7 +462,12 @@
           <!-- Historial de cambios -->
           <div v-if="tipoEdicion === 'logs'">
             <div class="logs-container">
-              <h4>Historial de cambios</h4>
+              <div class="logs-header">
+                <h4>Historial de cambios</h4>
+                <button @click="cargarLogsUsuario" class="btn btn-sm btn-outline" :disabled="cargandoLogs">
+                  <i class="fas fa-sync"></i> Actualizar
+                </button>
+              </div>
               
               <div v-if="cargandoLogs" class="loading-small">
                 <div class="spinner-small"></div>
@@ -471,6 +476,9 @@
               
               <div v-else-if="logsUsuario.length === 0" class="empty-logs">
                 <p>No hay cambios registrados para este usuario.</p>
+                <button @click="verificarLogsDebug" class="btn btn-sm btn-outline">
+                  <i class="fas fa-bug"></i> Verificar Debug
+                </button>
               </div>
               
               <div v-else class="logs-list">
@@ -483,6 +491,21 @@
                     <p class="log-admin"><strong>Administrador:</strong> {{ log.admin_completo }}</p>
                     <p class="log-cambios"><strong>Detalles:</strong> {{ log.resumen_cambios }}</p>
                     <p v-if="log.direccion_ip" class="log-ip"><strong>Desde IP:</strong> {{ log.direccion_ip }}</p>
+                    
+                    <!-- Detalles expandibles -->
+                    <details class="log-details">
+                      <summary>Ver datos técnicos</summary>
+                      <div class="log-technical">
+                        <div v-if="log.datos_anteriores" class="log-data">
+                          <strong>Datos anteriores:</strong>
+                          <pre>{{ JSON.stringify(log.datos_anteriores, null, 2) }}</pre>
+                        </div>
+                        <div v-if="log.datos_nuevos" class="log-data">
+                          <strong>Datos nuevos:</strong>
+                          <pre>{{ JSON.stringify(log.datos_nuevos, null, 2) }}</pre>
+                        </div>
+                      </div>
+                    </details>
                   </div>
                 </div>
               </div>
@@ -744,38 +767,50 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        console.log('Cambiando email:', {
-          user_id: this.usuarioEdit.id,
-          email_actual: this.usuarioEdit.email,
-          nuevo_email: this.nuevoEmail
-        });
+        console.log('=== CAMBIO DE EMAIL ===');
+        console.log('Usuario ID:', this.usuarioEdit.id);
+        console.log('Email actual:', this.usuarioEdit.email);
+        console.log('Nuevo email:', this.nuevoEmail);
         
-        const response = await axios.post('/api/usuarios/editar_usuario.php', {
+        const requestData = {
           user_id: this.usuarioEdit.id,
           accion: 'cambiar_email',
           nuevo_email: this.nuevoEmail
-        }, {
+        };
+        
+        console.log('Datos de request:', requestData);
+        
+        const response = await axios.post('/api/usuarios/editar_usuario.php', requestData, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        console.log('Respuesta cambio email:', response.data);
+        console.log('Respuesta del servidor:', response.data);
         
         if (response.data && response.data.success) {
           this.usuarioEdit.email = this.nuevoEmail;
           this.nuevoEmail = '';
           this.cargarUsuarios();
           alert('Email cambiado correctamente');
+          
+          // Actualizar logs automáticamente
+          if (this.tipoEdicion === 'logs') {
+            setTimeout(() => {
+              this.cargarLogsUsuario();
+            }, 1000);
+          }
         } else {
           this.error = response.data.error || 'Error desconocido';
         }
       } catch (error) {
-        console.error('Error al cambiar email:', error);
+        console.error('=== ERROR EN CAMBIO DE EMAIL ===');
+        console.error('Error completo:', error);
+        console.error('Response status:', error.response?.status);
         console.error('Response data:', error.response?.data);
         
         if (error.response?.data?.error) {
           this.error = error.response.data.error;
         } else if (error.response?.status === 500) {
-          this.error = "Error interno del servidor. Revise los logs.";
+          this.error = "Error interno del servidor. Revise los logs del servidor.";
         } else {
           this.error = "Error al cambiar email. Intente nuevamente.";
         }
@@ -860,30 +895,130 @@ export default {
     
     async cargarLogsUsuario() {
       this.cargandoLogs = true;
+      this.logsUsuario = [];
       
       try {
         const token = localStorage.getItem('token');
-        const url = `/api/usuarios/logs_auditoria.php?usuario_id=${this.usuarioEdit.id}&limite=20`;
+        const url = `/api/usuarios/logs_auditoria.php?usuario_id=${this.usuarioEdit.id}&limite=50`;
         
-        console.log('Cargando logs para usuario:', this.usuarioEdit.id);
+        console.log('=== CARGANDO LOGS DE USUARIO ===');
+        console.log('Usuario ID:', this.usuarioEdit.id);
         console.log('URL:', url);
         
         const response = await axios.get(url, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        console.log('Respuesta de logs:', response.data);
-        this.logsUsuario = response.data;
+        console.log('Response status:', response.status);
+        console.log('Response data:', response.data);
+        
+        if (Array.isArray(response.data)) {
+          this.logsUsuario = response.data;
+          console.log('Logs cargados:', this.logsUsuario.length);
+          
+          if (this.logsUsuario.length > 0) {
+            console.log('Primer log:', this.logsUsuario[0]);
+            
+            // Log detallado de cada registro
+            this.logsUsuario.forEach((log, index) => {
+              console.log(`Log ${index + 1}:`, {
+                id: log.id,
+                accion: log.accion,
+                fecha: log.fecha_accion,
+                admin: log.admin_completo,
+                resumen: log.resumen_cambios,
+                datos_anteriores: log.datos_anteriores,
+                datos_nuevos: log.datos_nuevos
+              });
+            });
+          }
+        } else {
+          console.error('Response data is not an array:', response.data);
+          this.logsUsuario = [];
+        }
         
         if (this.logsUsuario.length === 0) {
           console.log('No se encontraron logs para este usuario');
         }
       } catch (error) {
-        console.error('Error al cargar logs:', error);
+        console.error('=== ERROR AL CARGAR LOGS ===');
+        console.error('Error completo:', error);
+        console.error('Response status:', error.response?.status);
         console.error('Response data:', error.response?.data);
+        console.error('Response headers:', error.response?.headers);
+        
         this.logsUsuario = [];
+        
+        if (error.response?.status === 500) {
+          console.error('Error 500 - Revisar logs del servidor');
+        } else if (error.response?.status === 401) {
+          console.error('Error 401 - Token expirado o inválido');
+        } else if (error.response?.status === 403) {
+          console.error('Error 403 - Sin permisos');
+        }
       } finally {
         this.cargandoLogs = false;
+      }
+    },
+    
+    async verificarLogsDebug() {
+      try {
+        const token = localStorage.getItem('token');
+        
+        console.log('=== VERIFICACIÓN DEBUG DE LOGS ===');
+        
+        // Primero obtener todos los logs sin filtro
+        const responseAll = await axios.get('/api/usuarios/logs_auditoria.php?limite=100', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        console.log('Total logs en sistema:', responseAll.data?.length || 0);
+        
+        if (responseAll.data && responseAll.data.length > 0) {
+          // Filtrar logs del usuario actual
+          const logsDelUsuario = responseAll.data.filter(log => 
+            log.registro_id == this.usuarioEdit.id
+          );
+          
+          console.log(`Logs del usuario ${this.usuarioEdit.id}:`, logsDelUsuario.length);
+          
+          logsDelUsuario.forEach((log, index) => {
+            console.log(`Log encontrado ${index + 1}:`, {
+              id: log.id,
+              accion: log.accion,
+              registro_id: log.registro_id,
+              usuario_id: log.usuario_id,
+              fecha: log.fecha_accion,
+              resumen: log.resumen_cambios
+            });
+          });
+          
+          // Verificar logs de cambio de email específicamente
+          const logsEmail = logsDelUsuario.filter(log => 
+            log.accion === 'UPDATE_EMAIL'
+          );
+          
+          console.log('Logs de cambio de email:', logsEmail.length);
+          logsEmail.forEach((log, index) => {
+            console.log(`Log email ${index + 1}:`, log);
+          });
+          
+          // Si hay logs pero no se muestran, hay un problema en el filtrado
+          if (logsDelUsuario.length > 0 && this.logsUsuario.length === 0) {
+            console.warn('⚠️ HAY LOGS PERO NO SE MUESTRAN - Problema en el filtrado');
+            alert(`Se encontraron ${logsDelUsuario.length} logs en el sistema pero no se muestran en la interfaz. Revisar filtrado por usuario_id.`);
+          }
+        }
+        
+        // Verificar también la consulta específica que usa el frontend
+        const responseSpecific = await axios.get(`/api/usuarios/logs_auditoria.php?usuario_id=${this.usuarioEdit.id}&limite=50`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        console.log('Resultado consulta específica:', responseSpecific.data?.length || 0);
+        
+      } catch (error) {
+        console.error('Error en verificación de logs:', error);
       }
     },
     
@@ -935,14 +1070,12 @@ export default {
         'UPDATE_EMAIL': 'Cambio de email',
         'UPDATE_PASS': 'Cambio de contraseña',
         'RESET_PASS': 'Reseteo de contraseña',
-        'UPDATE': 'Actualización general',
-        // Mantener compatibilidad con nombres anteriores
-        'UPDATE_ACTUALIZAR_DATOS': 'Actualización de datos',
-        'UPDATE_CAMBIAR_EMAIL': 'Cambio de email',
-        'UPDATE_CAMBIAR_PASSWORD': 'Cambio de contraseña',
-        'UPDATE_RESETEAR_PASSWORD': 'Reseteo de contraseña'
+        'UPDATE': 'Actualización general'
       };
-      return acciones[accion] || 'Modificación';
+      
+      console.log('Formateando acción:', accion, '→', acciones[accion] || accion);
+      
+      return acciones[accion] || accion;
     },
     
     getRolClass(role) {
@@ -1212,7 +1345,7 @@ h1 {
   background-color: white;
   border-radius: 8px;
   width: 90%;
-  max-width: 600px;
+  max-width: 700px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -1249,6 +1382,7 @@ h1 {
   justify-content: flex-end;
   gap: 10px;
   border-top: 1px solid #e9ecef;
+  margin-top: 20px;
 }
 
 .form-row {
@@ -1336,8 +1470,19 @@ h1 {
 
 /* Contenedor de logs */
 .logs-container {
-  max-height: 400px;
+  max-height: 500px;
   overflow-y: auto;
+}
+
+.logs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.logs-header h4 {
+  margin: 0;
 }
 
 .logs-list {
@@ -1400,6 +1545,49 @@ h1 {
   font-size: 11px;
 }
 
+.log-details {
+  margin-top: 10px;
+}
+
+.log-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.log-technical {
+  margin-top: 8px;
+  padding: 8px;
+  background-color: white;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.log-data {
+  margin-bottom: 10px;
+}
+
+.log-data strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: #6c757d;
+}
+
+.log-data pre {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 3px;
+  padding: 8px;
+  font-size: 10px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
 .loading-small {
   display: flex;
   flex-direction: column;
@@ -1449,6 +1637,12 @@ h1 {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  border: none;
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
 }
 
 .btn-primary {
@@ -1457,10 +1651,19 @@ h1 {
   color: white;
 }
 
+.btn-primary:hover {
+  background-color: #0056b3;
+  border-color: #004085;
+}
+
 .btn-outline {
   background-color: transparent;
   border: 1px solid #ced4da;
   color: var(--dark-color);
+}
+
+.btn-outline:hover {
+  background-color: #e9ecef;
 }
 
 .btn-warning {
@@ -1490,8 +1693,19 @@ h1 {
   cursor: not-allowed;
 }
 
+/* CSS Variables que deberían estar en tu archivo principal */
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --dark-color: #343a40;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
+  .usuarios-container {
+    padding: 10px;
+  }
+  
   .form-row {
     flex-direction: column;
     gap: 0;
@@ -1513,6 +1727,15 @@ h1 {
   
   .password-actions {
     flex-direction: column;
+  }
+  
+  .modal-container {
+    width: 95%;
+    max-width: none;
+  }
+  
+  .logs-container {
+    max-height: 300px;
   }
 }
 </style>

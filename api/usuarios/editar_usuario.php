@@ -1,5 +1,5 @@
 <?php
-// api/usuarios/editar_completo.php
+// api/usuarios/editar_usuario.php - Versión con debug mejorado
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, PUT");
@@ -9,6 +9,11 @@ header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers
 // Incluir archivos de configuración
 include_once '../config/database.php';
 include_once '../config/jwt.php';
+
+// Función para logging
+function logDebug($message) {
+    error_log(date('Y-m-d H:i:s') . " - EDITAR_USUARIO: " . $message);
+}
 
 // Verificar método
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'PUT') {
@@ -39,6 +44,8 @@ if ($userData['role'] !== 'admin') {
 // Obtener datos de la solicitud
 $data = json_decode(file_get_contents("php://input"), true);
 
+logDebug("Request data: " . json_encode($data));
+
 // Validar datos requeridos
 if (!isset($data['user_id'])) {
     http_response_code(400);
@@ -47,7 +54,9 @@ if (!isset($data['user_id'])) {
 }
 
 $user_id = $data['user_id'];
-$accion = $data['accion'] ?? 'actualizar_datos'; // actualizar_datos, cambiar_email, cambiar_password
+$accion = $data['accion'] ?? 'actualizar_datos';
+
+logDebug("Processing action: {$accion} for user_id: {$user_id}");
 
 // Prevenir que el admin se modifique ciertos aspectos críticos
 if ($user_id == $userData['id'] && in_array($accion, ['cambiar_email', 'desactivar'])) {
@@ -68,6 +77,12 @@ try {
     if (!$usuario_actual) {
         throw new Exception("Usuario no encontrado");
     }
+    
+    logDebug("Current user data: " . json_encode([
+        'id' => $usuario_actual['id'],
+        'email' => $usuario_actual['email'],
+        'nombre' => $usuario_actual['nombre']
+    ]));
     
     // Almacenar datos anteriores para auditoría
     $datos_anteriores = $usuario_actual;
@@ -138,8 +153,10 @@ try {
                 
                 $stmt->execute();
                 $response['message'] = 'Datos actualizados correctamente';
+                logDebug("Data updated successfully");
             } else {
                 $response['message'] = 'No hay cambios que realizar';
+                logDebug("No changes to make");
             }
             break;
             
@@ -149,6 +166,8 @@ try {
             }
             
             $nuevo_email = trim($data['nuevo_email']);
+            
+            logDebug("Changing email from '{$usuario_actual['email']}' to '{$nuevo_email}'");
             
             // Validar formato de email
             if (!filter_var($nuevo_email, FILTER_VALIDATE_EMAIL)) {
@@ -165,9 +184,6 @@ try {
                 throw new Exception("El email ya está en uso por otro usuario");
             }
             
-            // Obtener email anterior para los logs
-            $email_anterior = $usuario_actual['email'];
-            
             // Actualizar email
             $stmt = $conn->prepare("UPDATE usuarios SET email = :email, email_verificado = 0 WHERE id = :user_id");
             $stmt->bindParam(':email', $nuevo_email);
@@ -179,10 +195,8 @@ try {
                 'email_verificado' => 0
             ];
             
-            // Agregar el email anterior a los datos para el log
-            $datos_anteriores['email'] = $email_anterior;
-            
             $response['message'] = 'Email actualizado correctamente';
+            logDebug("Email updated successfully from '{$usuario_actual['email']}' to '{$nuevo_email}'");
             break;
             
         case 'cambiar_password':
@@ -212,6 +226,7 @@ try {
             ];
             
             $response['message'] = 'Contraseña actualizada correctamente';
+            logDebug("Password updated successfully for user {$user_id}");
             break;
             
         case 'resetear_password':
@@ -233,18 +248,14 @@ try {
             
             $response['message'] = 'Contraseña reseteada correctamente';
             $response['password_temporal'] = $password_temporal;
+            logDebug("Password reset successfully for user {$user_id}");
             break;
             
         default:
             throw new Exception("Acción no válida");
     }
     
-    // Registrar en logs de auditoría
-    $stmt = $conn->prepare("INSERT INTO logs_auditoria 
-                           (usuario_id, tabla_afectada, registro_id, accion, datos_anteriores, datos_nuevos, direccion_ip, navegador, fecha_accion) 
-                           VALUES (:admin_id, 'usuarios', :user_id, :accion_log, :datos_anteriores, :datos_nuevos, :ip, :navegador, NOW())");
-    
-    // Usar nombres de acción más cortos
+    // Preparar datos para auditoría
     $acciones_log = [
         'actualizar_datos' => 'UPDATE_DATOS',
         'cambiar_email' => 'UPDATE_EMAIL',
@@ -254,7 +265,16 @@ try {
     
     $accion_log = $acciones_log[$accion] ?? 'UPDATE';
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    $navegador = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 255); // Limitar también el navegador
+    $navegador = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 255);
+    
+    logDebug("Preparing audit log - Action: {$accion_log}, Admin ID: {$userData['id']}, User ID: {$user_id}");
+    logDebug("Previous data: " . json_encode($datos_anteriores));
+    logDebug("New data: " . json_encode($datos_nuevos));
+    
+    // Registrar en logs de auditoría
+    $stmt = $conn->prepare("INSERT INTO logs_auditoria 
+                           (usuario_id, tabla_afectada, registro_id, accion, datos_anteriores, datos_nuevos, direccion_ip, navegador, fecha_accion) 
+                           VALUES (:admin_id, 'usuarios', :user_id, :accion_log, :datos_anteriores, :datos_nuevos, :ip, :navegador, NOW())");
     
     $stmt->bindParam(':admin_id', $userData['id']);
     $stmt->bindParam(':user_id', $user_id);
@@ -263,7 +283,17 @@ try {
     $stmt->bindParam(':datos_nuevos', json_encode($datos_nuevos));
     $stmt->bindParam(':ip', $ip);
     $stmt->bindParam(':navegador', $navegador);
-    $stmt->execute();
+    
+    $audit_result = $stmt->execute();
+    
+    if ($audit_result) {
+        $audit_id = $conn->lastInsertId();
+        logDebug("Audit log saved successfully with ID: {$audit_id}");
+    } else {
+        logDebug("Failed to save audit log");
+        $error_info = $stmt->errorInfo();
+        logDebug("SQL Error: " . json_encode($error_info));
+    }
     
     // Si cambió el rol, manejar tablas relacionadas
     if (isset($datos_nuevos['role']) && $datos_anteriores['role'] !== $datos_nuevos['role']) {
@@ -272,16 +302,19 @@ try {
             $stmt = $conn->prepare("DELETE FROM doctores WHERE usuario_id = :user_id");
             $stmt->bindParam(':user_id', $user_id);
             $stmt->execute();
+            logDebug("Deleted doctor record for user {$user_id}");
         }
         
         if ($datos_anteriores['role'] === 'aseguradora' && $datos_nuevos['role'] !== 'aseguradora') {
             $stmt = $conn->prepare("DELETE FROM aseguradoras WHERE usuario_id = :user_id");
             $stmt->bindParam(':user_id', $user_id);
             $stmt->execute();
+            logDebug("Deleted aseguradora record for user {$user_id}");
         }
     }
     
     $conn->commit();
+    logDebug("Transaction committed successfully");
     
     http_response_code(200);
     echo json_encode([
@@ -293,6 +326,9 @@ try {
     
 } catch(Exception $e) {
     $conn->rollback();
+    logDebug("Error occurred: " . $e->getMessage());
+    logDebug("Rolling back transaction");
+    
     http_response_code(500);
     echo json_encode(["error" => "Error al editar usuario: " . $e->getMessage()]);
 }
