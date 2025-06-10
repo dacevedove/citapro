@@ -903,6 +903,12 @@ export default {
     formatAccion(accion) {
       const acciones = {
         'INSERT': 'Creación',
+        'UPDATE_DATOS': 'Actualización de datos',
+        'UPDATE_EMAIL': 'Cambio de email',
+        'UPDATE_PASS': 'Cambio de contraseña',
+        'RESET_PASS': 'Reseteo de contraseña',
+        'UPDATE': 'Actualización',
+        // Mantener compatibilidad con nombres anteriores
         'UPDATE_ACTUALIZAR_DATOS': 'Actualización de datos',
         'UPDATE_CAMBIAR_EMAIL': 'Cambio de email',
         'UPDATE_CAMBIAR_PASSWORD': 'Cambio de contraseña',

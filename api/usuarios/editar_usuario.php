@@ -238,9 +238,17 @@ try {
                            (usuario_id, tabla_afectada, registro_id, accion, datos_anteriores, datos_nuevos, direccion_ip, navegador, fecha_accion) 
                            VALUES (:admin_id, 'usuarios', :user_id, :accion_log, :datos_anteriores, :datos_nuevos, :ip, :navegador, NOW())");
     
-    $accion_log = 'UPDATE_' . strtoupper($accion);
+    // Usar nombres de acción más cortos
+    $acciones_log = [
+        'actualizar_datos' => 'UPDATE_DATOS',
+        'cambiar_email' => 'UPDATE_EMAIL',
+        'cambiar_password' => 'UPDATE_PASS',
+        'resetear_password' => 'RESET_PASS'
+    ];
+    
+    $accion_log = $acciones_log[$accion] ?? 'UPDATE';
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    $navegador = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+    $navegador = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 255); // Limitar también el navegador
     
     $stmt->bindParam(':admin_id', $userData['id']);
     $stmt->bindParam(':user_id', $user_id);
