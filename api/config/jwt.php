@@ -34,6 +34,8 @@ function generateJWT($user) {
 
 // Función para validar un token JWT
 function validateJWT($token) {
+    if (!$token) return false;
+    
     list($headerEncoded, $payloadEncoded, $signatureEncoded) = explode('.', $token);
     
     $signature = base64_decode($signatureEncoded);
@@ -50,5 +52,10 @@ function validateJWT($token) {
     }
     
     return $payload['data'];
+}
+
+// Alias para compatibilidad
+function verifyJWT($token) {
+    return validateJWT($token);
 }
 ?>

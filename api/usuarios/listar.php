@@ -80,8 +80,33 @@ try {
     
     // Formatear fechas y agregar información adicional
     foreach ($usuarios as &$usuario) {
-        $usuario['ultimo_acceso'] = $usuario['ultimo_acceso'] ? 
-            date('d/m/Y H:i', strtotime($usuario['ultimo_acceso'])) : 'Nunca';
+        // Formatear último acceso
+        if ($usuario['ultimo_acceso']) {
+            $fecha_acceso = new DateTime($usuario['ultimo_acceso']);
+            $ahora = new DateTime();
+            $diferencia = $ahora->diff($fecha_acceso);
+            
+            if ($diferencia->days == 0) {
+                if ($diferencia->h == 0) {
+                    if ($diferencia->i == 0) {
+                        $usuario['ultimo_acceso'] = 'Hace unos momentos';
+                    } else {
+                        $usuario['ultimo_acceso'] = 'Hace ' . $diferencia->i . ' minuto' . ($diferencia->i > 1 ? 's' : '');
+                    }
+                } else {
+                    $usuario['ultimo_acceso'] = 'Hace ' . $diferencia->h . ' hora' . ($diferencia->h > 1 ? 's' : '');
+                }
+            } elseif ($diferencia->days == 1) {
+                $usuario['ultimo_acceso'] = 'Ayer a las ' . $fecha_acceso->format('H:i');
+            } elseif ($diferencia->days < 7) {
+                $usuario['ultimo_acceso'] = 'Hace ' . $diferencia->days . ' día' . ($diferencia->days > 1 ? 's' : '');
+            } else {
+                $usuario['ultimo_acceso'] = $fecha_acceso->format('d/m/Y H:i');
+            }
+        } else {
+            $usuario['ultimo_acceso'] = 'Nunca';
+        }
+        
         $usuario['creado_en'] = date('d/m/Y H:i', strtotime($usuario['creado_en']));
         $usuario['esta_activo'] = (bool)$usuario['esta_activo'];
         $usuario['email_verificado'] = (bool)$usuario['email_verificado'];
