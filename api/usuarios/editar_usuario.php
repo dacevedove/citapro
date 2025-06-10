@@ -165,6 +165,9 @@ try {
                 throw new Exception("El email ya está en uso por otro usuario");
             }
             
+            // Obtener email anterior para los logs
+            $email_anterior = $usuario_actual['email'];
+            
             // Actualizar email
             $stmt = $conn->prepare("UPDATE usuarios SET email = :email, email_verificado = 0 WHERE id = :user_id");
             $stmt->bindParam(':email', $nuevo_email);
@@ -175,6 +178,9 @@ try {
                 'email' => $nuevo_email,
                 'email_verificado' => 0
             ];
+            
+            // Agregar el email anterior a los datos para el log
+            $datos_anteriores['email'] = $email_anterior;
             
             $response['message'] = 'Email actualizado correctamente';
             break;

@@ -744,6 +744,12 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
+        console.log('Cambiando email:', {
+          user_id: this.usuarioEdit.id,
+          email_actual: this.usuarioEdit.email,
+          nuevo_email: this.nuevoEmail
+        });
+        
         const response = await axios.post('/api/usuarios/editar_usuario.php', {
           user_id: this.usuarioEdit.id,
           accion: 'cambiar_email',
@@ -752,15 +758,27 @@ export default {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
+        console.log('Respuesta cambio email:', response.data);
+        
         if (response.data && response.data.success) {
           this.usuarioEdit.email = this.nuevoEmail;
           this.nuevoEmail = '';
           this.cargarUsuarios();
           alert('Email cambiado correctamente');
+        } else {
+          this.error = response.data.error || 'Error desconocido';
         }
       } catch (error) {
         console.error('Error al cambiar email:', error);
-        this.error = error.response?.data?.error || "Error al cambiar email.";
+        console.error('Response data:', error.response?.data);
+        
+        if (error.response?.data?.error) {
+          this.error = error.response.data.error;
+        } else if (error.response?.status === 500) {
+          this.error = "Error interno del servidor. Revise los logs.";
+        } else {
+          this.error = "Error al cambiar email. Intente nuevamente.";
+        }
       } finally {
         this.guardando = false;
       }
