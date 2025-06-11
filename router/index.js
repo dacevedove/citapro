@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/auth';
 import Login from '../components/Auth/Login.vue';
 
 // Componentes compartidos
-import Dashboard from '../components/Shared/Dashboard.vue';
+//import Dashboard from '../components/Shared/Dashboard.vue';
 import Perfil from '../components/Shared/Perfil.vue';
 
 // Componentes de administrador
