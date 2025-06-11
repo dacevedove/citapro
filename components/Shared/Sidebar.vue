@@ -1,3 +1,4 @@
+// Archivo: components/Shared/Sidebar.vue
 <template>
   <div class="sidebar" :class="{ collapsed: isCollapsed }">
     <div class="sidebar-header">
@@ -9,7 +10,59 @@
     
     <div class="sidebar-content">
 
-      <!-- Menú para vertice -->
+      <!-- Menú para coordinador -->
+      <div v-if="userRole === 'coordinador'" class="sidebar-menu">
+        <div class="menu-title">Panel de Coordinación</div>
+        <ul class="menu-items">
+          <li>
+            <router-link to="/coordinador/dashboard" class="menu-item">
+              <i class="fas fa-tachometer-alt"></i>
+              <span>Dashboard</span>
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/coordinador/citas" class="menu-item">
+              <i class="fas fa-calendar-check"></i>
+              <span>Gestión de Citas</span>
+            </router-link>
+          </li>
+          <li class="menu-group">
+            <div class="menu-item-group" @click="toggleSubmenu('doctores')">
+              <i class="fas fa-user-md"></i>
+              <span>Doctores</span>
+              <i class="fas fa-chevron-down submenu-arrow" :class="{ 'rotated': openSubmenus.doctores }"></i>
+            </div>
+            <ul class="submenu" v-show="openSubmenus.doctores">
+              <li>
+                <router-link to="/coordinador/doctores" class="submenu-item">
+                  <i class="fas fa-users"></i>
+                  <span>Lista de Doctores</span>
+                </router-link>
+              </li>
+              <li>
+                <router-link to="/coordinador/horarios" class="submenu-item">
+                  <i class="fas fa-calendar"></i>
+                  <span>Horarios</span>
+                </router-link>
+              </li>
+              <li>
+                <router-link to="/coordinador/especialidades" class="submenu-item">
+                  <i class="fas fa-stethoscope"></i>
+                  <span>Especialidades</span>
+                </router-link>
+              </li>
+              <li>
+                <router-link to="/coordinador/tipos-bloque" class="submenu-item">
+                  <i class="fas fa-clock"></i>
+                  <span>Tipos de Bloque</span>
+                </router-link>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Menú para vértice -->
       <div v-if="userRole === 'vertice'" class="sidebar-menu">
         <div class="menu-title">Panel de Vértice</div>
         <ul class="menu-items">
@@ -50,17 +103,38 @@
               <span>Gestión de Citas</span>
             </router-link>
           </li>
-          <li>
-            <router-link to="/admin/doctores" class="menu-item">
+          <li class="menu-group">
+            <div class="menu-item-group" @click="toggleSubmenu('doctores')">
               <i class="fas fa-user-md"></i>
               <span>Doctores</span>
-            </router-link>
-          </li>
-          <li>
-            <router-link to="/admin/especialidades" class="menu-item">
-              <i class="fas fa-clipboard-list"></i>
-              <span>Especialidades</span>
-            </router-link>
+              <i class="fas fa-chevron-down submenu-arrow" :class="{ 'rotated': openSubmenus.doctores }"></i>
+            </div>
+            <ul class="submenu" v-show="openSubmenus.doctores">
+              <li>
+                <router-link to="/admin/doctores" class="submenu-item">
+                  <i class="fas fa-users"></i>
+                  <span>Lista de Doctores</span>
+                </router-link>
+              </li>
+              <li>
+                <router-link to="/admin/horarios" class="submenu-item">
+                  <i class="fas fa-calendar"></i>
+                  <span>Horarios</span>
+                </router-link>
+              </li>
+              <li>
+                <router-link to="/admin/especialidades" class="submenu-item">
+                  <i class="fas fa-stethoscope"></i>
+                  <span>Especialidades</span>
+                </router-link>
+              </li>
+              <li>
+                <router-link to="/admin/tipos-bloque" class="submenu-item">
+                  <i class="fas fa-clock"></i>
+                  <span>Tipos de Bloque</span>
+                </router-link>
+              </li>
+            </ul>
           </li>
           <li>
             <router-link to="/admin/aseguradoras" class="menu-item">
@@ -91,6 +165,12 @@
             <router-link to="/doctor/dashboard" class="menu-item">
               <i class="fas fa-tachometer-alt"></i>
               <span>Dashboard</span>
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/doctor/horarios" class="menu-item">
+              <i class="fas fa-calendar"></i>
+              <span>Mis Horarios</span>
             </router-link>
           </li>
           <li>
@@ -161,7 +241,10 @@ export default {
   name: 'Sidebar',
   data() {
     return {
-      isCollapsed: false
+      isCollapsed: false,
+      openSubmenus: {
+        doctores: false
+      }
     }
   },
   computed: {
@@ -173,6 +256,17 @@ export default {
     toggleCollapse() {
       this.isCollapsed = !this.isCollapsed;
       document.body.classList.toggle('sidebar-collapsed', this.isCollapsed);
+      
+      // Cerrar submenús cuando se colapsa
+      if (this.isCollapsed) {
+        this.openSubmenus = { doctores: false };
+      }
+    },
+    
+    toggleSubmenu(submenuName) {
+      if (this.isCollapsed) return;
+      
+      this.openSubmenus[submenuName] = !this.openSubmenus[submenuName];
     }
   }
 }
@@ -270,9 +364,87 @@ export default {
   background-color: #2E2825;
 }
 
+/* Estilos para submenús */
+.menu-group {
+  position: relative;
+}
+
+.menu-item-group {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  color: #ecf0f1;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  justify-content: space-between;
+}
+
+.menu-item-group:hover {
+  background-color: #2E2825;
+}
+
+.menu-item-group i:first-child {
+  margin-right: 10px;
+  width: 20px;
+  text-align: center;
+}
+
+.submenu-arrow {
+  transition: transform 0.3s ease;
+  font-size: 12px;
+}
+
+.submenu-arrow.rotated {
+  transform: rotate(180deg);
+}
+
+.submenu {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  background-color: #2E2825;
+  border-top: 1px solid #1a1a1a;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.menu-group .submenu {
+  max-height: 200px;
+}
+
+.submenu-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 15px 8px 45px;
+  color: #bdc3c7;
+  text-decoration: none;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.submenu-item:hover {
+  background-color: #1a1a1a;
+  color: #ecf0f1;
+}
+
+.submenu-item i {
+  margin-right: 8px;
+  width: 16px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.submenu-item.router-link-active {
+  background-color: #897A72;
+  color: #ecf0f1;
+}
+
+/* Estados colapsado */
 .sidebar.collapsed .clinic-name,
 .sidebar.collapsed .menu-title,
-.sidebar.collapsed .menu-item span {
+.sidebar.collapsed .menu-item span,
+.sidebar.collapsed .submenu-arrow {
   display: none;
 }
 
@@ -286,6 +458,37 @@ export default {
   font-size: 18px;
 }
 
+.sidebar.collapsed .menu-item-group {
+  justify-content: center;
+  padding: 15px 0;
+}
+
+.sidebar.collapsed .menu-item-group i:first-child {
+  margin-right: 0;
+  font-size: 18px;
+}
+
+.sidebar.collapsed .submenu {
+  display: none;
+}
+
+/* Animaciones */
+@keyframes slideDown {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 200px;
+    opacity: 1;
+  }
+}
+
+.submenu {
+  animation: slideDown 0.3s ease;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
