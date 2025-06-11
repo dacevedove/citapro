@@ -66,7 +66,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 }
 
 // Validar que el rol sea válido
-$roles_validos = ['admin', 'doctor', 'aseguradora', 'paciente', 'vertice'];
+$roles_validos = ['admin', 'doctor', 'aseguradora', 'paciente', 'vertice', 'coordinador'];
 if (!in_array($role, $roles_validos)) {
     http_response_code(400);
     echo json_encode(["error" => "Rol no válido"]);
