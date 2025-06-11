@@ -376,7 +376,6 @@ export default {
   color: #ecf0f1;
   cursor: pointer;
   transition: background-color 0.2s;
-  justify-content: space-between;
 }
 
 .menu-item-group:hover {
@@ -392,6 +391,7 @@ export default {
 .submenu-arrow {
   transition: transform 0.3s ease;
   font-size: 12px;
+  padding:0.5em;
 }
 
 .submenu-arrow.rotated {
