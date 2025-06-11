@@ -31,6 +31,7 @@
             <option value="doctor">Doctor</option>
             <option value="aseguradora">Aseguradora</option>
             <option value="paciente">Paciente</option>
+            <option value="coordinador">Coordindor</option>
             <option value="vertice">Vértice</option>
           </select>
         </div>
@@ -199,6 +200,7 @@
                 <option value="doctor">Doctor</option>
                 <option value="aseguradora">Aseguradora</option>
                 <option value="paciente">Paciente</option>
+                <option value="paciente">Coordinador</option>
                 <option value="vertice">Vértice</option>
               </select>
             </div>
@@ -341,6 +343,7 @@
                   <option value="doctor">Doctor</option>
                   <option value="aseguradora">Aseguradora</option>
                   <option value="paciente">Paciente</option>
+                  <option value="coordinador">Coordinador</option>
                   <option value="vertice">Vértice</option>
                 </select>
                 <small v-if="usuarioEdit.id === currentUserId" class="text-muted">
@@ -1058,6 +1061,7 @@ export default {
         'doctor': 'Doctor',
         'aseguradora': 'Aseguradora',
         'paciente': 'Paciente',
+        'coordinador': 'Coordinador',
         'vertice': 'Vértice'
       };
       return roles[role] || role;
@@ -1084,6 +1088,7 @@ export default {
         'doctor': 'rol-doctor',
         'aseguradora': 'rol-aseguradora',
         'paciente': 'rol-paciente',
+        'coordinador': 'rol-coordinador',
         'vertice': 'rol-vertice'
       };
       return classes[role] || '';
