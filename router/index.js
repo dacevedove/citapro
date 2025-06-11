@@ -9,53 +9,51 @@ import Dashboard from '../components/Shared/Dashboard.vue';
 import Perfil from '../components/Shared/Perfil.vue';
 
 // Componentes de administrador
+import AdminDashboard from '../components/Admin/Dashboard.vue';
 import AsignarCitas from '../components/Admin/AsignarCitas.vue';
 import Doctores from '../components/Admin/Doctores.vue';
 import Aseguradoras from '../components/Admin/Aseguradoras.vue';
 import Pacientes from '../components/Admin/Pacientes.vue';
+import Especialidades from '../components/Admin/Especialidades.vue';
 import Usuarios from '../components/Admin/Usuarios.vue';
 
-// Componentes de gestión de horarios
-import GestorHorarios from '../components/Horarios/GestorHorarios.vue';
-import TiposBloqueHorario from '../components/Horarios/TiposBloqueHorario.vue';
-import EspecialidadesCrud from '../components/Doctores/EspecialidadesCrud.vue';
-
 // Componentes de doctores
-import DoctorDashboard from '../components/Doctor/DoctorDashboard.vue';
+import DoctorDashboard from '../components/Doctor/Dashboard.vue';
 import AceptarCitas from '../components/Doctor/AceptarCitas.vue';
-import CitasDisponibles from '../components/Doctor/CitasDisponibles.vue';
-import HistorialDoctor from '../components/Doctor/HistorialDoctor.vue';
 
 // Componentes de aseguradoras
-import AseguradoraDashboard from '../components/Aseguradora/AseguradoraDashboard.vue';
+import AseguradoraDashboard from '../components/Aseguradora/Dashboard.vue';
 import SolicitarCita from '../components/Aseguradora/SolicitarCita.vue';
-import Titulares from '../components/Aseguradora/Titulares.vue';
-import PacientesAseguradora from '../components/Aseguradora/PacientesAseguradora.vue';
-import HistorialAseguradora from '../components/Aseguradora/HistorialAseguradora.vue';
+import GestionTitulares from '../components/Aseguradora/GestionTitulares.vue';
+import GestionPacientes from '../components/Aseguradora/GestionPacientes.vue';
 
-// Componentes de coordinador
-import CoordinadorDashboard from '../components/Coordinador/CoordinadorDashboard.vue';
-import CoordinadorCitas from '../components/Coordinador/CoordinadorCitas.vue';
+// Componentes de pacientes
+import PacienteDashboard from '../components/Paciente/Dashboard.vue';
+import PacienteSolicitarCita from '../components/Paciente/SolicitarCita.vue';
+
+// Componentes de Vértice (temporal)
+import VerticeLayout from '../components/Vertice/Layout.vue';
+import SolicitudesTable from '../components/Vertice/SolicitudesTable.vue';
+import AsignacionForm from '../components/Vertice/AsignacionForm.vue';
+import DoctoresTable from '../components/Vertice/DoctoresTable.vue';
+import HorariosForm from '../components/Vertice/HorariosForm.vue';
 
 const routes = [
+  // Ruta raíz
+  {
+    path: '/',
+    redirect: '/login'
+  },
+  
+  // Autenticación
   {
     path: '/login',
     name: 'Login',
     component: Login,
     meta: { requiresAuth: false }
   },
-  {
-    path: '/',
-    redirect: '/dashboard'
-  },
 
   // Rutas compartidas
-  {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: Dashboard,
-    meta: { requiresAuth: true }
-  },
   {
     path: '/perfil',
     name: 'Perfil',
@@ -63,263 +61,195 @@ const routes = [
     meta: { requiresAuth: true }
   },
 
-  // Rutas de administrador
+  // Rutas temporales para Vértice
   {
-    path: '/admin',
-    redirect: '/admin/dashboard',
-    meta: { requiresAuth: true, roles: ['admin'] }
+    path: '/vertice',
+    component: VerticeLayout,
+    meta: { requiresAuth: true, role: 'vertice' },
+    children: [
+      {
+        path: 'solicitudes',
+        name: 'vertice-solicitudes',
+        component: SolicitudesTable,
+        meta: { title: 'Solicitudes' }
+      },
+      {
+        path: 'asignacion/:solicitudId',
+        name: 'vertice-asignacion',
+        component: AsignacionForm,
+        meta: { title: 'Asignación de Cita' },
+        props: true
+      },
+      {
+        path: 'doctores',
+        name: 'vertice-doctores',
+        component: DoctoresTable,
+        meta: { title: 'Doctores' }
+      },
+      {
+        path: 'horarios',
+        name: 'vertice-horarios',
+        component: HorariosForm,
+        meta: { title: 'Horarios' }
+      }
+    ]
   },
+
+  // Rutas de admin
   {
     path: '/admin/dashboard',
     name: 'AdminDashboard',
-    component: Dashboard,
-    meta: { requiresAuth: true, roles: ['admin'] }
+    component: AdminDashboard,
+    meta: { requiresAuth: true, role: 'admin' }
   },
   {
     path: '/admin/citas',
-    name: 'AdminCitas',
+    name: 'AsignarCitas',
     component: AsignarCitas,
-    meta: { requiresAuth: true, roles: ['admin'] }
+    meta: { requiresAuth: true, role: 'admin' }
   },
   {
     path: '/admin/doctores',
-    name: 'AdminDoctores',
+    name: 'Doctores',
     component: Doctores,
-    meta: { requiresAuth: true, roles: ['admin'] }
-  },
-  {
-    path: '/admin/horarios',
-    name: 'AdminHorarios',
-    component: GestorHorarios,
-    meta: { requiresAuth: true, roles: ['admin'] }
-  },
-  {
-    path: '/admin/especialidades',
-    name: 'AdminEspecialidades',
-    component: EspecialidadesCrud,
-    meta: { requiresAuth: true, roles: ['admin'] }
-  },
-  {
-    path: '/admin/tipos-bloque',
-    name: 'AdminTiposBloque',
-    component: TiposBloqueHorario,
-    meta: { requiresAuth: true, roles: ['admin'] }
+    meta: { requiresAuth: true, role: 'admin' }
   },
   {
     path: '/admin/aseguradoras',
-    name: 'AdminAseguradoras',
+    name: 'Aseguradoras',
     component: Aseguradoras,
-    meta: { requiresAuth: true, roles: ['admin'] }
+    meta: { requiresAuth: true, role: 'admin' }
   },
   {
     path: '/admin/pacientes',
-    name: 'AdminPacientes',
+    name: 'Pacientes',
     component: Pacientes,
-    meta: { requiresAuth: true, roles: ['admin'] }
+    meta: { requiresAuth: true, role: 'admin' }
+  },
+  {
+    path: '/admin/especialidades',
+    name: 'Especialidades',
+    component: Especialidades,
+    meta: { requiresAuth: true, role: 'admin' }
   },
   {
     path: '/admin/usuarios',
-    name: 'AdminUsuarios',
+    name: 'Usuarios',
     component: Usuarios,
-    meta: { requiresAuth: true, roles: ['admin'] }
+    meta: { requiresAuth: true, role: 'admin' }
   },
 
-  // Rutas de coordinador
-  {
-    path: '/coordinador',
-    redirect: '/coordinador/dashboard',
-    meta: { requiresAuth: true, roles: ['coordinador'] }
-  },
-  {
-    path: '/coordinador/dashboard',
-    name: 'CoordinadorDashboard',
-    component: CoordinadorDashboard,
-    meta: { requiresAuth: true, roles: ['coordinador'] }
-  },
-  {
-    path: '/coordinador/citas',
-    name: 'CoordinadorCitas',
-    component: CoordinadorCitas,
-    meta: { requiresAuth: true, roles: ['coordinador'] }
-  },
-  {
-    path: '/coordinador/doctores',
-    name: 'CoordinadorDoctores',
-    component: Doctores,
-    meta: { requiresAuth: true, roles: ['coordinador'] }
-  },
-  {
-    path: '/coordinador/horarios',
-    name: 'CoordinadorHorarios',
-    component: GestorHorarios,
-    meta: { requiresAuth: true, roles: ['coordinador'] }
-  },
-  {
-    path: '/coordinador/especialidades',
-    name: 'CoordinadorEspecialidades',
-    component: EspecialidadesCrud,
-    meta: { requiresAuth: true, roles: ['coordinador'] }
-  },
-  {
-    path: '/coordinador/tipos-bloque',
-    name: 'CoordinadorTiposBloque',
-    component: TiposBloqueHorario,
-    meta: { requiresAuth: true, roles: ['coordinador'] }
-  },
-
-  // Rutas de doctores
-  {
-    path: '/doctor',
-    redirect: '/doctor/dashboard',
-    meta: { requiresAuth: true, roles: ['doctor'] }
-  },
+  // Rutas de doctor
   {
     path: '/doctor/dashboard',
     name: 'DoctorDashboard',
     component: DoctorDashboard,
-    meta: { requiresAuth: true, roles: ['doctor'] }
-  },
-  {
-    path: '/doctor/horarios',
-    name: 'DoctorHorarios',
-    component: GestorHorarios,
-    meta: { requiresAuth: true, roles: ['doctor'] }
+    meta: { requiresAuth: true, role: 'doctor' }
   },
   {
     path: '/doctor/aceptar-citas',
-    name: 'DoctorAceptarCitas',
+    name: 'AceptarCitas',
     component: AceptarCitas,
-    meta: { requiresAuth: true, roles: ['doctor'] }
-  },
-  {
-    path: '/doctor/disponibles',
-    name: 'DoctorDisponibles',
-    component: CitasDisponibles,
-    meta: { requiresAuth: true, roles: ['doctor'] }
-  },
-  {
-    path: '/doctor/historial',
-    name: 'DoctorHistorial',
-    component: HistorialDoctor,
-    meta: { requiresAuth: true, roles: ['doctor'] }
+    meta: { requiresAuth: true, role: 'doctor' }
   },
 
-  // Rutas de aseguradoras
-  {
-    path: '/aseguradora',
-    redirect: '/aseguradora/dashboard',
-    meta: { requiresAuth: true, roles: ['aseguradora'] }
-  },
+  // Rutas de aseguradora
   {
     path: '/aseguradora/dashboard',
     name: 'AseguradoraDashboard',
     component: AseguradoraDashboard,
-    meta: { requiresAuth: true, roles: ['aseguradora'] }
+    meta: { requiresAuth: true, role: 'aseguradora' }
   },
   {
     path: '/aseguradora/solicitar-cita',
-    name: 'AseguradoraSolicitarCita',
+    name: 'SolicitarCita',
     component: SolicitarCita,
-    meta: { requiresAuth: true, roles: ['aseguradora'] }
+    meta: { requiresAuth: true, role: 'aseguradora' }
   },
   {
     path: '/aseguradora/titulares',
-    name: 'AseguradoraTitulares',
-    component: Titulares,
-    meta: { requiresAuth: true, roles: ['aseguradora'] }
+    name: 'GestionTitulares',
+    component: GestionTitulares,
+    meta: { requiresAuth: true, role: 'aseguradora' }
   },
   {
     path: '/aseguradora/pacientes',
-    name: 'AseguradoraPacientes',
-    component: PacientesAseguradora,
-    meta: { requiresAuth: true, roles: ['aseguradora'] }
-  },
-  {
-    path: '/aseguradora/historial',
-    name: 'AseguradoaHistorial',
-    component: HistorialAseguradora,
-    meta: { requiresAuth: true, roles: ['aseguradora'] }
+    name: 'GestionPacientes',
+    component: GestionPacientes,
+    meta: { requiresAuth: true, role: 'aseguradora' }
   },
 
-  // Ruta 404
+  // Rutas de paciente
+  {
+    path: '/paciente/dashboard',
+    name: 'PacienteDashboard',
+    component: PacienteDashboard,
+    meta: { requiresAuth: true, role: 'paciente' }
+  },
+  {
+    path: '/paciente/solicitar-cita',
+    name: 'PacienteSolicitarCita',
+    component: PacienteSolicitarCita,
+    meta: { requiresAuth: true, role: 'paciente' }
+  },
+
+  // Ruta para error 404
   {
     path: '/:pathMatch(.*)*',
-    name: 'NotFound',
-    component: () => import('../components/Shared/NotFound.vue'),
-    meta: { requiresAuth: false }
+    redirect: '/'
   }
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory('/'),
   routes
 });
 
-// Guard de navegación
-router.beforeEach((to, from, next) => {
+// Guard de navegación mejorado
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   
   // Verificar si la ruta requiere autenticación
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login');
-    return;
-  }
-  
-  // Verificar roles si está especificado
-  if (to.meta.roles && to.meta.roles.length > 0) {
-    if (!authStore.isAuthenticated) {
-      next('/login');
-      return;
-    }
-    
-    if (!to.meta.roles.includes(authStore.userRole)) {
-      // Redirigir al dashboard apropiado según el rol
-      const userRole = authStore.userRole;
-      switch (userRole) {
-        case 'admin':
-          next('/admin/dashboard');
-          break;
-        case 'coordinador':
-          next('/coordinador/dashboard');
-          break;
-        case 'doctor':
-          next('/doctor/dashboard');
-          break;
-        case 'aseguradora':
-          next('/aseguradora/dashboard');
-          break;
-        default:
-          next('/dashboard');
-          break;
+  if (to.meta.requiresAuth) {
+    // Verificar si hay token y usuario en el store
+    if (authStore.token) {
+      // Si no hay usuario en el store pero hay token, validar el token
+      if (!authStore.user) {
+        try {
+          // Intentar validar el token
+          const isValid = await authStore.validateToken();
+          
+          if (!isValid) {
+            // Si el token no es válido, redirigir al login
+            return next('/login');
+          }
+        } catch (error) {
+          console.error('Error validando token:', error);
+          return next('/login');
+        }
       }
-      return;
+      
+      // Verificar si la ruta requiere un rol específico
+      if (to.meta.role && authStore.userRole !== to.meta.role) {
+        // Redirigir según el rol del usuario si está intentando acceder a una ruta no permitida
+        return authStore.redirectBasedOnRole();
+      }
+      
+      // Permitir acceso a la ruta
+      return next();
+    } else {
+      // No hay token, redirigir al login
+      return next('/login');
     }
   }
   
-  // Si el usuario está autenticado y trata de acceder al login, redirigir al dashboard
+  // Si intenta acceder a login estando autenticado, redirigir según rol
   if (to.path === '/login' && authStore.isAuthenticated) {
-    const userRole = authStore.userRole;
-    switch (userRole) {
-      case 'admin':
-        next('/admin/dashboard');
-        break;
-      case 'coordinador':
-        next('/coordinador/dashboard');
-        break;
-      case 'doctor':
-        next('/doctor/dashboard');
-        break;
-      case 'aseguradora':
-        next('/aseguradora/dashboard');
-        break;
-      default:
-        next('/dashboard');
-        break;
-    }
-    return;
+    return authStore.redirectBasedOnRole();
   }
   
-  next();
+  // Si la ruta no requiere autenticación, permitir acceso
+  return next();
 });
 
 export default router;
