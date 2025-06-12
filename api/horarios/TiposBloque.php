@@ -133,8 +133,9 @@ function crearTipo() {
     $descripcion = isset($data->descripcion) ? $data->descripcion : null;
     $stmt->bindParam(':descripcion', $descripcion);
     $stmt->bindParam(':color', $color);
-    $activo = isset($data->activo) ? $data->activo : true;
-    $stmt->bindParam(':activo', $activo, PDO::PARAM_BOOL);
+    // Corregir el manejo del campo activo
+    $activo = isset($data->activo) ? ($data->activo ? 1 : 0) : 1;
+    $stmt->bindParam(':activo', $activo, PDO::PARAM_INT);
     $stmt->bindParam(':creado_por', $userData['id']);
     
     $stmt->execute();
@@ -215,7 +216,8 @@ function actualizarTipo() {
     
     if (isset($data->activo)) {
         $updates[] = "activo = :activo";
-        $params[':activo'] = $data->activo;
+        // Corregir la conversión del valor booleano
+        $params[':activo'] = $data->activo ? 1 : 0;
     }
     
     if (empty($updates)) {
@@ -227,11 +229,27 @@ function actualizarTipo() {
     $sql = "UPDATE tipos_bloque_horario SET " . implode(", ", $updates) . " WHERE id = :id";
     $stmt = $conn->prepare($sql);
     
+    // Debug: Log de la consulta para verificar
+    error_log("SQL Query: " . $sql);
+    error_log("Params: " . json_encode($params));
+    
     foreach ($params as $param => $value) {
-        $stmt->bindValue($param, $value);
+        if ($param === ':activo') {
+            // Usar bindValue con PDO::PARAM_INT para el campo activo
+            $stmt->bindValue($param, $value, PDO::PARAM_INT);
+        } else {
+            $stmt->bindValue($param, $value);
+        }
     }
     
-    $stmt->execute();
+    $result = $stmt->execute();
+    
+    if (!$result) {
+        error_log("Error en la ejecución: " . implode(", ", $stmt->errorInfo()));
+        http_response_code(500);
+        echo json_encode(["error" => "Error al actualizar el tipo de bloque"]);
+        return;
+    }
     
     http_response_code(200);
     echo json_encode([
