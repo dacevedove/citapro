@@ -51,7 +51,7 @@ $nuevo_role = $data['nuevo_role'];
 $esta_activo = isset($data['esta_activo']) ? $data['esta_activo'] : null;
 
 // Validar que el rol sea válido
-$roles_validos = ['admin', 'doctor', 'aseguradora', 'paciente', 'vertice'];
+$roles_validos = ['admin', 'doctor', 'aseguradora', 'paciente', 'vertice', 'coordinador'];
 if (!in_array($nuevo_role, $roles_validos)) {
     http_response_code(400);
     echo json_encode(["error" => "Rol no válido"]);

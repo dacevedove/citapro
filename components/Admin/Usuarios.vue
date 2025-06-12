@@ -1312,6 +1312,15 @@ h1 {
   font-weight: 500;
 }
 
+.rol-coordinador {
+  background-color: #727d6c;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .rol-vertice {
   background-color: #fd7e14;
   color: white;
