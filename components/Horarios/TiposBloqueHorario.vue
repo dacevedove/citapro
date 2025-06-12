@@ -216,7 +216,7 @@ export default {
       this.guardando = true;
       try {
         const token = localStorage.getItem('token');
-        const url = '/api/horarios/tipos_bloque.php';
+        const url = '/api/horarios/TiposBloque.php';
         const method = this.editando ? 'put' : 'post';
         
         const response = await axios[method](url, this.formData, {
@@ -240,7 +240,7 @@ export default {
     async cambiarEstado(id, nuevoEstado) {
       try {
         const token = localStorage.getItem('token');
-        await axios.put('/api/horarios/tipos_bloque.php', {
+        await axios.put('/api/horarios/TiposBloque.php', {
           id,
           activo: nuevoEstado
         }, {
