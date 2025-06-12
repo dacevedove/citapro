@@ -322,7 +322,7 @@ export default {
     async cargarTiposBloque() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('/api/horarios/tipos_bloque.php', {
+        const response = await axios.get('/api/horarios/TiposBloque.php', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         this.tiposBloque = response.data.filter(tipo => tipo.activo);
