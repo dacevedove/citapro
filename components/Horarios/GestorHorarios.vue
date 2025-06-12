@@ -319,6 +319,7 @@ export default {
       }
     },
 
+    
     async cargarTiposBloque() {
       try {
         const token = localStorage.getItem('token');
