@@ -117,7 +117,7 @@ try {
             
             if (isset($data['role']) && $data['role'] !== $usuario_actual['role']) {
                 // Validar rol
-                $roles_validos = ['admin', 'doctor', 'aseguradora', 'paciente', 'vertice'];
+                $roles_validos = ['admin', 'doctor', 'aseguradora', 'paciente', 'coordinador', 'vertice'];
                 if (!in_array($data['role'], $roles_validos)) {
                     throw new Exception("Rol no válido");
                 }
