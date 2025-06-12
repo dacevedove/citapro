@@ -5,7 +5,6 @@ import { useAuthStore } from '../store/auth';
 import Login from '../components/Auth/Login.vue';
 
 // Componentes compartidos
-//import Dashboard from '../components/Shared/Dashboard.vue';
 import Perfil from '../components/Shared/Perfil.vue';
 
 // Componentes de administrador
@@ -16,6 +15,10 @@ import Aseguradoras from '../components/Admin/Aseguradoras.vue';
 import Pacientes from '../components/Admin/Pacientes.vue';
 import Especialidades from '../components/Admin/Especialidades.vue';
 import Usuarios from '../components/Admin/Usuarios.vue';
+
+// Componentes de horarios
+import GestorHorarios from '../components/Horarios/GestorHorarios.vue';
+import TiposBloqueHorario from '../components/Horarios/TiposBloqueHorario.vue';
 
 // Componentes de doctores
 import DoctorDashboard from '../components/Doctor/Dashboard.vue';
@@ -115,6 +118,18 @@ const routes = [
     meta: { requiresAuth: true, role: 'admin' }
   },
   {
+    path: '/admin/horarios',
+    name: 'AdminGestorHorarios',
+    component: GestorHorarios,
+    meta: { requiresAuth: true, role: 'admin' }
+  },
+  {
+    path: '/admin/tipos-bloque',
+    name: 'AdminTiposBloqueHorario',
+    component: TiposBloqueHorario,
+    meta: { requiresAuth: true, role: 'admin' }
+  },
+  {
     path: '/admin/aseguradoras',
     name: 'Aseguradoras',
     component: Aseguradoras,
@@ -139,11 +154,55 @@ const routes = [
     meta: { requiresAuth: true, role: 'admin' }
   },
 
+  // Rutas de coordinador (con las mismas funcionalidades que admin para horarios)
+  {
+    path: '/coordinador/dashboard',
+    name: 'CoordinadorDashboard',
+    component: AdminDashboard, // Reutilizando el dashboard de admin
+    meta: { requiresAuth: true, role: 'coordinador' }
+  },
+  {
+    path: '/coordinador/citas',
+    name: 'CoordinadorAsignarCitas',
+    component: AsignarCitas,
+    meta: { requiresAuth: true, role: 'coordinador' }
+  },
+  {
+    path: '/coordinador/doctores',
+    name: 'CoordinadorDoctores',
+    component: Doctores,
+    meta: { requiresAuth: true, role: 'coordinador' }
+  },
+  {
+    path: '/coordinador/horarios',
+    name: 'CoordinadorGestorHorarios',
+    component: GestorHorarios,
+    meta: { requiresAuth: true, role: 'coordinador' }
+  },
+  {
+    path: '/coordinador/tipos-bloque',
+    name: 'CoordinadorTiposBloqueHorario',
+    component: TiposBloqueHorario,
+    meta: { requiresAuth: true, role: 'coordinador' }
+  },
+  {
+    path: '/coordinador/especialidades',
+    name: 'CoordinadorEspecialidades',
+    component: Especialidades,
+    meta: { requiresAuth: true, role: 'coordinador' }
+  },
+
   // Rutas de doctor
   {
     path: '/doctor/dashboard',
     name: 'DoctorDashboard',
     component: DoctorDashboard,
+    meta: { requiresAuth: true, role: 'doctor' }
+  },
+  {
+    path: '/doctor/horarios',
+    name: 'DoctorGestorHorarios',
+    component: GestorHorarios,
     meta: { requiresAuth: true, role: 'doctor' }
   },
   {
