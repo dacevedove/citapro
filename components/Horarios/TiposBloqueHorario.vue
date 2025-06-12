@@ -159,7 +159,7 @@ export default {
       this.loading = true;
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('/api/horarios/tipos_bloque.php', {
+        const response = await axios.get('/api/horarios/TiposBloque.php', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         this.tipos = response.data;
