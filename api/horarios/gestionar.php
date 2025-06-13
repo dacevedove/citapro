@@ -159,10 +159,10 @@ function crearHorario() {
         return;
     }
     
-    // Calcular fecha de inicio de la semana
-    $fecha_inicio_semana = calcularInicioSemana($data->fecha);
+    // Calcular fecha de inicio de la semana desde la fecha seleccionada
+    $fecha_inicio_semana = calcularInicioSemanaDesdefecha($data->fecha);
     
-    // Verificar solapamientos
+    // Verificar solapamientos - CORREGIDO
     if (verificarSolapamiento($data->doctor_id, $fecha_inicio_semana, $data->dia_semana, $data->hora_inicio, $data->hora_fin)) {
         http_response_code(400);
         echo json_encode(["error" => "Ya existe un horario que se solapa con este período"]);
@@ -251,7 +251,7 @@ function actualizarHorario() {
     }
     
     if (isset($data->fecha)) {
-        $fecha_inicio_semana = calcularInicioSemana($data->fecha);
+        $fecha_inicio_semana = calcularInicioSemanaDesdefecha($data->fecha);
         $updates[] = "fecha_inicio = :fecha_inicio";
         $params[':fecha_inicio'] = $fecha_inicio_semana;
     }
@@ -298,7 +298,7 @@ function actualizarHorario() {
         $params[':duracion_minutos'] = $duracion;
         
         // Verificar solapamientos (excluyendo el horario actual)
-        $fecha_verificar = isset($data->fecha) ? calcularInicioSemana($data->fecha) : $horarioActual['fecha_inicio'];
+        $fecha_verificar = isset($data->fecha) ? calcularInicioSemanaDesdefecha($data->fecha) : $horarioActual['fecha_inicio'];
         $dia_verificar = isset($data->dia_semana) ? $data->dia_semana : $horarioActual['dia_semana'];
         
         if (verificarSolapamiento($horarioActual['doctor_id'], $fecha_verificar, $dia_verificar, $nueva_hora_inicio, $nueva_hora_fin, $data->id)) {
@@ -414,14 +414,26 @@ function verificarPermisoDoctor($doctor_id) {
     return false;
 }
 
-function calcularInicioSemana($fecha) {
+// FUNCIÓN CORREGIDA - Calcular inicio de semana desde cualquier fecha
+function calcularInicioSemanaDesdefecha($fecha) {
     $timestamp = strtotime($fecha);
     $dia_semana = date('w', $timestamp); // 0 = domingo, 1 = lunes, etc.
     
-    // Ajustar para que lunes sea el primer día
-    $dias_hasta_lunes = ($dia_semana === 0) ? 6 : $dia_semana - 1;
+    // Ajustar para que lunes sea el primer día (1)
+    if ($dia_semana === 0) {
+        // Si es domingo, retroceder 6 días para llegar al lunes
+        $dias_hasta_lunes = 6;
+    } else {
+        // Para cualquier otro día, retroceder hasta llegar al lunes
+        $dias_hasta_lunes = $dia_semana - 1;
+    }
     
     return date('Y-m-d', strtotime("-$dias_hasta_lunes days", $timestamp));
+}
+
+// Función mantenida para compatibilidad (aunque no se usa)
+function calcularInicioSemana($fecha) {
+    return calcularInicioSemanaDesdeData($fecha);
 }
 
 function calcularDuracionMinutos($hora_inicio, $hora_fin) {
@@ -431,10 +443,20 @@ function calcularDuracionMinutos($hora_inicio, $hora_fin) {
     return ($fin - $inicio) / 60;
 }
 
+// FUNCIÓN CORREGIDA - Verificación de solapamiento más precisa
 function verificarSolapamiento($doctor_id, $fecha_inicio, $dia_semana, $hora_inicio, $hora_fin, $excluir_id = null) {
     global $conn;
     
-    $sql = "SELECT id FROM horarios_doctores 
+    // Debug para verificar los parámetros
+    error_log("Verificando solapamiento:");
+    error_log("Doctor ID: $doctor_id");
+    error_log("Fecha inicio: $fecha_inicio");
+    error_log("Día semana: $dia_semana");
+    error_log("Hora inicio: $hora_inicio");
+    error_log("Hora fin: $hora_fin");
+    error_log("Excluir ID: " . ($excluir_id ?? 'null'));
+    
+    $sql = "SELECT id, hora_inicio, hora_fin FROM horarios_doctores 
             WHERE doctor_id = :doctor_id 
             AND fecha_inicio = :fecha_inicio 
             AND dia_semana = :dia_semana 
@@ -462,7 +484,16 @@ function verificarSolapamiento($doctor_id, $fecha_inicio, $dia_semana, $hora_ini
     }
     $stmt->execute();
     
-    return $stmt->fetch() !== false;
+    $resultado = $stmt->fetch();
+    
+    if ($resultado) {
+        error_log("Solapamiento encontrado con horario ID: " . $resultado['id']);
+        error_log("Horario existente: " . $resultado['hora_inicio'] . " - " . $resultado['hora_fin']);
+    } else {
+        error_log("No se encontró solapamiento");
+    }
+    
+    return $resultado !== false;
 }
 
 function registrarLogHorario($horario_id, $accion, $datos_anteriores, $datos_nuevos) {

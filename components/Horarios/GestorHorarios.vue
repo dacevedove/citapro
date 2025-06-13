@@ -49,7 +49,7 @@
         <div class="time-column-header">Hora</div>
         <div v-for="dia in diasSemana" :key="dia.fecha" class="day-header">
           <div class="day-name">{{ dia.nombre }}</div>
-          <div class="day-date">{{ formatearFecha(dia.fecha) }}</div>
+          <div class="day-date">{{ formatearFechaCompleta(dia.fecha) }}</div>
         </div>
       </div>
 
@@ -131,29 +131,16 @@
             </select>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>Fecha:</label>
-              <input 
-                type="date" 
-                v-model="bloqueForm.fecha" 
-                class="form-control"
-                required
-              />
-            </div>
-            
-            <div class="form-group">
-              <label>Día:</label>
-              <select v-model="bloqueForm.dia_semana" class="form-control" required>
-                <option value="1">Lunes</option>
-                <option value="2">Martes</option>
-                <option value="3">Miércoles</option>
-                <option value="4">Jueves</option>
-                <option value="5">Viernes</option>
-                <option value="6">Sábado</option>
-                <option value="7">Domingo</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <label>Fecha:</label>
+            <input 
+              type="date" 
+              v-model="bloqueForm.fecha" 
+              class="form-control"
+              required
+              @change="actualizarDiaSemana"
+            />
+            <small class="form-text">{{ obtenerNombreDia(bloqueForm.fecha) }}</small>
           </div>
 
           <div class="form-row">
@@ -319,7 +306,6 @@ export default {
       }
     },
 
-    
     async cargarTiposBloque() {
       try {
         const token = localStorage.getItem('token');
@@ -388,7 +374,6 @@ export default {
     generarDiasSemana() {
       if (!this.semanaSeleccionada) return;
       
-      const [año, semana] = this.semanaSeleccionada.split('-W');
       const fechaInicio = this.obtenerFechaInicioSemana();
       
       this.diasSemana = [];
@@ -453,7 +438,13 @@ export default {
 
     obtenerBloquesEnCelda(fecha, hora) {
       return this.horarios.filter(horario => {
-        if (horario.fecha_inicio !== fecha) return false;
+        // Comparar fecha de inicio de semana y día
+        const fechaDelBloque = new Date(horario.fecha_inicio);
+        const diasAgregar = horario.dia_semana - 1; // dia_semana es 1-7
+        fechaDelBloque.setDate(fechaDelBloque.getDate() + diasAgregar);
+        const fechaBloqueStr = fechaDelBloque.toISOString().split('T')[0];
+        
+        if (fechaBloqueStr !== fecha) return false;
         
         const horaInicioBloque = horario.hora_inicio;
         return horaInicioBloque === hora;
@@ -480,12 +471,30 @@ export default {
       return tipo ? tipo.nombre : 'Desconocido';
     },
 
-    formatearFecha(fecha) {
+    formatearFechaCompleta(fecha) {
       const date = new Date(fecha);
-      return date.toLocaleDateString('es-ES', { 
+      const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      const nombreDia = diasSemana[date.getDay()];
+      const fechaFormateada = date.toLocaleDateString('es-ES', { 
         day: '2-digit', 
         month: '2-digit' 
       });
+      return `${nombreDia}, ${fechaFormateada}`;
+    },
+
+    obtenerNombreDia(fecha) {
+      if (!fecha) return '';
+      const date = new Date(fecha);
+      const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      return diasSemana[date.getDay()];
+    },
+
+    actualizarDiaSemana() {
+      if (this.bloqueForm.fecha) {
+        const fecha = new Date(this.bloqueForm.fecha);
+        const dia = fecha.getDay();
+        this.bloqueForm.dia_semana = dia === 0 ? 7 : dia; // Convertir domingo (0) a 7
+      }
     },
 
     iniciarNuevoBloque(fecha, hora) {
@@ -509,11 +518,17 @@ export default {
     },
 
     editarBloque(bloque) {
+      // Calcular la fecha real del bloque
+      const fechaInicioSemana = new Date(bloque.fecha_inicio);
+      const diasAgregar = bloque.dia_semana - 1;
+      fechaInicioSemana.setDate(fechaInicioSemana.getDate() + diasAgregar);
+      const fechaReal = fechaInicioSemana.toISOString().split('T')[0];
+      
       this.bloqueForm = {
         id: bloque.id,
         doctor_id: bloque.doctor_id,
         tipo_bloque_id: bloque.tipo_bloque_id,
-        fecha: bloque.fecha_inicio,
+        fecha: fechaReal,
         dia_semana: bloque.dia_semana,
         hora_inicio: bloque.hora_inicio,
         hora_fin: bloque.hora_fin,
@@ -557,6 +572,11 @@ export default {
         return;
       }
       
+      if (!this.bloqueForm.fecha) {
+        this.errorModal = 'Debe seleccionar una fecha';
+        return;
+      }
+      
       if (!this.bloqueForm.hora_inicio || !this.bloqueForm.hora_fin) {
         this.errorModal = 'Debe especificar hora de inicio y fin';
         return;
@@ -566,6 +586,11 @@ export default {
         this.errorModal = 'La hora de inicio debe ser menor que la hora de fin';
         return;
       }
+
+      // Asegurar que dia_semana esté actualizado
+      this.actualizarDiaSemana();
+
+      console.log('Datos a enviar:', this.bloqueForm);
 
       this.guardando = true;
       try {
@@ -585,6 +610,7 @@ export default {
         }
       } catch (error) {
         console.error('Error al guardar bloque:', error);
+        console.error('Response:', error.response?.data);
         this.errorModal = error.response?.data?.error || 'Error al guardar el bloque horario';
       } finally {
         this.guardando = false;
@@ -625,7 +651,7 @@ export default {
       
       const rect = event.target.getBoundingClientRect();
       const y = event.clientY - rect.top;
-      const slotHeight = 30; // 30px por slot de 30 minutos
+      const slotHeight = 30;
       const slotIndex = Math.floor(y / slotHeight);
       
       if (slotIndex >= 0 && slotIndex < this.horasDisponibles.length) {
@@ -688,9 +714,7 @@ export default {
       const deltaY = event.clientY - this.resizeStartY;
       const nuevaAltura = this.resizeStartHeight + deltaY;
       const nuevosSlots = Math.max(1, Math.round(nuevaAltura / 30));
-      const nuevosMinutos = nuevosSlots * 30;
-      
-      // Actualizar visualmente
+
       const elemento = event.target.closest('.bloque-horario');
       if (elemento) {
         elemento.style.height = `${nuevosSlots * 30}px`;
@@ -717,7 +741,7 @@ export default {
         await this.cargarHorarios();
       } catch (error) {
         console.error('Error al redimensionar bloque:', error);
-        await this.cargarHorarios(); // Recargar para restaurar estado
+        await this.cargarHorarios();
       }
       
       document.removeEventListener('mousemove', this.onResize);
@@ -768,6 +792,12 @@ export default {
   border: 1px solid #ced4da;
   border-radius: 4px;
   font-size: 14px;
+}
+
+.form-text {
+  color: #6c757d;
+  font-size: 12px;
+  margin-top: 5px;
 }
 
 .btn {
