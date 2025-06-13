@@ -377,9 +377,33 @@ export default {
     // Información de la semana actual
     inicioSemana() {
       const fecha = new Date(this.semanaActual);
-      const dia = fecha.getDay();
-      const diff = fecha.getDate() - dia + (dia === 0 ? -6 : 1); // Lunes como primer día
-      return new Date(fecha.setDate(diff));
+      const dia = fecha.getDay(); // 0 = domingo, 1 = lunes, etc.
+      
+      // Calcular cuántos días retroceder para llegar al lunes
+      let diasAtras;
+      if (dia === 0) {
+        // Si es domingo, retroceder 6 días
+        diasAtras = 6;
+      } else {
+        // Para cualquier otro día, retroceder (dia - 1) días
+        diasAtras = dia - 1;
+      }
+      
+      const inicioSemana = new Date(fecha);
+      inicioSemana.setDate(fecha.getDate() - diasAtras);
+      
+      // Usar la misma lógica que calcularInicioSemanaDesdefecha para consistencia
+      const resultado = inicioSemana.toISOString().split('T')[0];
+      
+      console.log('🔍 Cálculo inicioSemana computed:', {
+        semana_actual: this.semanaActual,
+        dia_semana_js: dia,
+        dias_atras: diasAtras,
+        inicio_calculado: resultado,
+        fecha_objeto: inicioSemana
+      });
+      
+      return new Date(resultado + 'T00:00:00');
     },
     
     formatoSemanaActual() {
@@ -590,11 +614,12 @@ export default {
         const token = localStorage.getItem('token');
         const fechaInicio = this.inicioSemana.toISOString().split('T')[0];
         
-        console.log('Cargando horarios:', {
+        console.log('🔍 Cargando horarios con detalles:', {
           doctor_id: this.filtros.doctorId,
-          fecha_inicio: fechaInicio,
+          fecha_inicio_enviada: fechaInicio,
           semana_actual: this.semanaActual,
-          inicio_semana_objeto: this.inicioSemana
+          inicio_semana_objeto: this.inicioSemana,
+          inicio_semana_string: fechaInicio
         });
         
         // USAR EL PARÁMETRO CORRECTO QUE ESPERA EL PHP
@@ -602,29 +627,36 @@ export default {
           headers: { 'Authorization': `Bearer ${token}` },
           params: {
             doctor_id: this.filtros.doctorId,
-            fecha_inicio: fechaInicio  // Cambié de fecha_inicio a fecha_inicio
+            fecha_inicio: fechaInicio
           }
         });
         
-        console.log('Respuesta del servidor:', response.data);
+        console.log('🔍 Respuesta del servidor completa:', {
+          status: response.status,
+          data: response.data,
+          data_length: response.data?.length || 0
+        });
         
         this.horarios = response.data.map(horario => {
           // Limpiar el formato de hora si viene con segundos
-          const horaInicio = horario.hora_inicio.substring(0, 5);
-          const horaFin = horario.hora_fin.substring(0, 5);
+          const horaInicio = horario.hora_inicio.includes(':') ? horario.hora_inicio.substring(0, 5) : horario.hora_inicio;
+          const horaFin = horario.hora_fin.includes(':') ? horario.hora_fin.substring(0, 5) : horario.hora_fin;
           
-          return {
+          const horarioProcesado = {
             ...horario,
             hora_inicio: horaInicio,
             hora_fin: horaFin,
             tooltip: `${this.obtenerNombreTipo(horario.tipo_bloque_id)}\n${this.formatearHora(horaInicio)} - ${this.formatearHora(horaFin)}${horario.notas ? '\n' + horario.notas : ''}`
           };
+          
+          console.log('🔍 Horario procesado:', horarioProcesado);
+          return horarioProcesado;
         });
         
-        console.log('Horarios procesados:', this.horarios);
+        console.log('🔍 Total horarios procesados:', this.horarios.length);
         
       } catch (error) {
-        console.error('Error al cargar horarios:', error);
+        console.error('❌ Error al cargar horarios:', error);
         this.error = 'Error al cargar los horarios';
       } finally {
         this.loading = false;
