@@ -593,14 +593,16 @@ export default {
         console.log('Cargando horarios:', {
           doctor_id: this.filtros.doctorId,
           fecha_inicio: fechaInicio,
-          semana_actual: this.semanaActual
+          semana_actual: this.semanaActual,
+          inicio_semana_objeto: this.inicioSemana
         });
         
+        // USAR EL PARÁMETRO CORRECTO QUE ESPERA EL PHP
         const response = await axios.get('/api/horarios/gestionar.php', {
           headers: { 'Authorization': `Bearer ${token}` },
           params: {
             doctor_id: this.filtros.doctorId,
-            fecha_inicio: fechaInicio
+            fecha_inicio: fechaInicio  // Cambié de fecha_inicio a fecha_inicio
           }
         });
         
@@ -845,10 +847,14 @@ export default {
         const fecha = new Date(this.formulario.fecha + 'T00:00:00'); // Evitar problemas de timezone
         const diaSemana = fecha.getDay() === 0 ? 7 : fecha.getDay(); // Domingo = 7
         
+        // IMPORTANTE: Calcular la fecha de inicio de semana basada en la fecha seleccionada
+        // Esto debe coincidir con lo que enviamos en cargarHorarios()
+        const fechaInicieSemana = this.calcularInicioSemanaDesdefecha(this.formulario.fecha);
+        
         const datos = {
           doctor_id: parseInt(this.formulario.doctor_id),
           tipo_bloque_id: parseInt(this.formulario.tipo_bloque_id),
-          fecha: this.formulario.fecha,
+          fecha: fechaInicieSemana, // Usar fecha de inicio de semana, no la fecha seleccionada
           dia_semana: diaSemana,
           hora_inicio: this.formulario.hora_inicio,
           hora_fin: this.formulario.hora_fin,
@@ -859,7 +865,12 @@ export default {
           datos.id = this.formulario.id;
         }
         
-        console.log('Enviando datos al servidor:', datos);
+        console.log('Enviando datos al servidor:', {
+          ...datos,
+          fecha_seleccionada_original: this.formulario.fecha,
+          fecha_inicio_semana_calculada: fechaInicieSemana,
+          dia_semana_calculado: diaSemana
+        });
         
         const token = localStorage.getItem('token');
         const metodo = this.modal.esEdicion ? 'put' : 'post';
@@ -891,6 +902,36 @@ export default {
       const inicioAño = new Date(fecha.getFullYear(), 0, 1);
       const dias = Math.floor((fecha - inicioAño) / (24 * 60 * 60 * 1000));
       return Math.ceil((dias + inicioAño.getDay() + 1) / 7);
+    },
+    
+    // Función para calcular inicio de semana desde cualquier fecha
+    calcularInicioSemanaDesdefecha(fecha) {
+      const fechaObj = new Date(fecha + 'T00:00:00');
+      const diaSemana = fechaObj.getDay(); // 0 = domingo, 1 = lunes, etc.
+      
+      // Calcular cuántos días retroceder para llegar al lunes
+      let diasAtras;
+      if (diaSemana === 0) {
+        // Si es domingo, retroceder 6 días
+        diasAtras = 6;
+      } else {
+        // Para cualquier otro día, retroceder (diaSemana - 1) días
+        diasAtras = diaSemana - 1;
+      }
+      
+      const inicioSemana = new Date(fechaObj);
+      inicioSemana.setDate(fechaObj.getDate() - diasAtras);
+      
+      const resultado = inicioSemana.toISOString().split('T')[0];
+      
+      console.log('Cálculo inicio semana:', {
+        fecha_original: fecha,
+        dia_semana_js: diaSemana,
+        dias_atras: diasAtras,
+        fecha_inicio_calculada: resultado
+      });
+      
+      return resultado;
     },
     
     calcularFechaRealBloque(bloque) {
