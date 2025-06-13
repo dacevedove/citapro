@@ -980,4 +980,5 @@ label {
   .btn {
     min-width: auto;
   }
-  </style>
+  }
+</style>
