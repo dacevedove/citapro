@@ -135,12 +135,22 @@ function crearHorario() {
     
     $data = json_decode(file_get_contents("php://input"));
     
+    // Log de datos recibidos para debug
+    error_log("Datos recibidos para crear horario: " . json_encode($data));
+    
+    // Validar que se recibieron datos
+    if (!$data) {
+        http_response_code(400);
+        echo json_encode(["error" => "No se recibieron datos válidos"]);
+        return;
+    }
+    
     // Validar datos requeridos
     $camposRequeridos = ['doctor_id', 'tipo_bloque_id', 'fecha', 'dia_semana', 'hora_inicio', 'hora_fin'];
     foreach ($camposRequeridos as $campo) {
-        if (!isset($data->$campo) || empty($data->$campo)) {
+        if (!isset($data->$campo) || $data->$campo === '' || $data->$campo === null) {
             http_response_code(400);
-            echo json_encode(["error" => "Campo requerido: $campo"]);
+            echo json_encode(["error" => "Campo requerido faltante o vacío: $campo"]);
             return;
         }
     }
@@ -160,9 +170,11 @@ function crearHorario() {
     }
     
     // Calcular fecha de inicio de la semana desde la fecha seleccionada
-    $fecha_inicio_semana = calcularInicioSemanaDesdefecha($data->fecha);
+    $fecha_inicio_semana = calcularInicioSemanaDesFecha($data->fecha);
     
-    // Verificar solapamientos - CORREGIDO
+    error_log("Fecha calculada inicio semana: $fecha_inicio_semana");
+    
+    // Verificar solapamientos
     if (verificarSolapamiento($data->doctor_id, $fecha_inicio_semana, $data->dia_semana, $data->hora_inicio, $data->hora_fin)) {
         http_response_code(400);
         echo json_encode(["error" => "Ya existe un horario que se solapa con este período"]);
@@ -172,43 +184,57 @@ function crearHorario() {
     // Calcular duración en minutos
     $duracion = calcularDuracionMinutos($data->hora_inicio, $data->hora_fin);
     
-    $stmt = $conn->prepare("
-        INSERT INTO horarios_doctores 
-        (doctor_id, tipo_bloque_id, fecha_inicio, dia_semana, hora_inicio, hora_fin, duracion_minutos, notas, creado_por) 
-        VALUES (:doctor_id, :tipo_bloque_id, :fecha_inicio, :dia_semana, :hora_inicio, :hora_fin, :duracion_minutos, :notas, :creado_por)
-    ");
-    
-    $stmt->bindParam(':doctor_id', $data->doctor_id);
-    $stmt->bindParam(':tipo_bloque_id', $data->tipo_bloque_id);
-    $stmt->bindParam(':fecha_inicio', $fecha_inicio_semana);
-    $stmt->bindParam(':dia_semana', $data->dia_semana);
-    $stmt->bindParam(':hora_inicio', $data->hora_inicio);
-    $stmt->bindParam(':hora_fin', $data->hora_fin);
-    $stmt->bindParam(':duracion_minutos', $duracion);
-    $notas = isset($data->notas) ? $data->notas : null;
-    $stmt->bindParam(':notas', $notas);
-    $stmt->bindParam(':creado_por', $userData['id']);
-    
-    $stmt->execute();
-    
-    $horario_id = $conn->lastInsertId();
-    
-    // Registrar en logs
-    registrarLogHorario($horario_id, 'crear', null, [
-        'doctor_id' => $data->doctor_id,
-        'tipo_bloque_id' => $data->tipo_bloque_id,
-        'fecha_inicio' => $fecha_inicio_semana,
-        'dia_semana' => $data->dia_semana,
-        'hora_inicio' => $data->hora_inicio,
-        'hora_fin' => $data->hora_fin
-    ]);
-    
-    http_response_code(201);
-    echo json_encode([
-        "success" => true,
-        "message" => "Horario creado exitosamente",
-        "id" => $horario_id
-    ]);
+    try {
+        $stmt = $conn->prepare("
+            INSERT INTO horarios_doctores 
+            (doctor_id, tipo_bloque_id, fecha_inicio, dia_semana, hora_inicio, hora_fin, duracion_minutos, notas, creado_por) 
+            VALUES (:doctor_id, :tipo_bloque_id, :fecha_inicio, :dia_semana, :hora_inicio, :hora_fin, :duracion_minutos, :notas, :creado_por)
+        ");
+        
+        $stmt->bindParam(':doctor_id', $data->doctor_id);
+        $stmt->bindParam(':tipo_bloque_id', $data->tipo_bloque_id);
+        $stmt->bindParam(':fecha_inicio', $fecha_inicio_semana);
+        $stmt->bindParam(':dia_semana', $data->dia_semana);
+        $stmt->bindParam(':hora_inicio', $data->hora_inicio);
+        $stmt->bindParam(':hora_fin', $data->hora_fin);
+        $stmt->bindParam(':duracion_minutos', $duracion);
+        $notas = isset($data->notas) ? $data->notas : null;
+        $stmt->bindParam(':notas', $notas);
+        $stmt->bindParam(':creado_por', $userData['id']);
+        
+        $resultado = $stmt->execute();
+        
+        if (!$resultado) {
+            error_log("Error al ejecutar INSERT: " . implode(", ", $stmt->errorInfo()));
+            http_response_code(500);
+            echo json_encode(["error" => "Error al insertar en la base de datos"]);
+            return;
+        }
+        
+        $horario_id = $conn->lastInsertId();
+        
+        // Registrar en logs
+        registrarLogHorario($horario_id, 'crear', null, [
+            'doctor_id' => $data->doctor_id,
+            'tipo_bloque_id' => $data->tipo_bloque_id,
+            'fecha_inicio' => $fecha_inicio_semana,
+            'dia_semana' => $data->dia_semana,
+            'hora_inicio' => $data->hora_inicio,
+            'hora_fin' => $data->hora_fin
+        ]);
+        
+        http_response_code(201);
+        echo json_encode([
+            "success" => true,
+            "message" => "Horario creado exitosamente",
+            "id" => $horario_id
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Excepción al crear horario: " . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(["error" => "Error interno: " . $e->getMessage()]);
+    }
 }
 
 function actualizarHorario() {
@@ -298,7 +324,7 @@ function actualizarHorario() {
         $params[':duracion_minutos'] = $duracion;
         
         // Verificar solapamientos (excluyendo el horario actual)
-        $fecha_verificar = isset($data->fecha) ? calcularInicioSemanaDesdefecha($data->fecha) : $horarioActual['fecha_inicio'];
+        $fecha_verificar = isset($data->fecha) ? calcularInicioSemanaDesFecha($data->fecha) : $horarioActual['fecha_inicio'];
         $dia_verificar = isset($data->dia_semana) ? $data->dia_semana : $horarioActual['dia_semana'];
         
         if (verificarSolapamiento($horarioActual['doctor_id'], $fecha_verificar, $dia_verificar, $nueva_hora_inicio, $nueva_hora_fin, $data->id)) {
@@ -415,7 +441,7 @@ function verificarPermisoDoctor($doctor_id) {
 }
 
 // FUNCIÓN CORREGIDA - Calcular inicio de semana desde cualquier fecha
-function calcularInicioSemanaDesdefecha($fecha) {
+function calcularInicioSemanaDesFecha($fecha) {
     $timestamp = strtotime($fecha);
     $dia_semana = date('w', $timestamp); // 0 = domingo, 1 = lunes, etc.
     
@@ -431,9 +457,9 @@ function calcularInicioSemanaDesdefecha($fecha) {
     return date('Y-m-d', strtotime("-$dias_hasta_lunes days", $timestamp));
 }
 
-// Función mantenida para compatibilidad (aunque no se usa)
+// Función mantenida para compatibilidad
 function calcularInicioSemana($fecha) {
-    return calcularInicioSemanaDesdeData($fecha);
+    return calcularInicioSemanaDesFecha($fecha);
 }
 
 function calcularDuracionMinutos($hora_inicio, $hora_fin) {

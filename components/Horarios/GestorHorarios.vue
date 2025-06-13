@@ -590,28 +590,60 @@ export default {
       // Asegurar que dia_semana esté actualizado
       this.actualizarDiaSemana();
 
-      console.log('Datos a enviar:', this.bloqueForm);
+      // Asegurar que doctor_id esté establecido
+      if (!this.bloqueForm.doctor_id) {
+        this.bloqueForm.doctor_id = this.doctorSeleccionado;
+      }
+
+      // Preparar datos completos
+      const datosCompletos = {
+        doctor_id: parseInt(this.bloqueForm.doctor_id),
+        tipo_bloque_id: parseInt(this.bloqueForm.tipo_bloque_id),
+        fecha: this.bloqueForm.fecha,
+        dia_semana: parseInt(this.bloqueForm.dia_semana),
+        hora_inicio: this.bloqueForm.hora_inicio,
+        hora_fin: this.bloqueForm.hora_fin,
+        notas: this.bloqueForm.notas || ''
+      };
+
+      // Si es edición, agregar el ID
+      if (this.editandoBloque) {
+        datosCompletos.id = parseInt(this.bloqueForm.id);
+      }
+
+      console.log('Datos completos a enviar:', datosCompletos);
 
       this.guardando = true;
       try {
         const token = localStorage.getItem('token');
-        const url = this.editandoBloque ? '/api/horarios/gestionar.php' : '/api/horarios/gestionar.php';
+        const url = '/api/horarios/gestionar.php';
         const method = this.editandoBloque ? 'put' : 'post';
         
-        const response = await axios[method](url, this.bloqueForm, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const response = await axios[method](url, datosCompletos, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
 
-        if (response.data.success) {
+        if (response.data && response.data.success) {
           await this.cargarHorarios();
           this.cerrarModal();
         } else {
-          this.errorModal = response.data.error || 'Error al guardar el bloque';
+          this.errorModal = response.data?.error || 'Error al guardar el bloque';
         }
       } catch (error) {
-        console.error('Error al guardar bloque:', error);
-        console.error('Response:', error.response?.data);
-        this.errorModal = error.response?.data?.error || 'Error al guardar el bloque horario';
+        console.error('Error completo:', error);
+        console.error('Response data:', error.response?.data);
+        console.error('Response status:', error.response?.status);
+        
+        if (error.response?.status === 500) {
+          this.errorModal = 'Error interno del servidor. Revise los logs del servidor.';
+        } else if (error.response?.data?.error) {
+          this.errorModal = error.response.data.error;
+        } else {
+          this.errorModal = 'Error al guardar el bloque horario';
+        }
       } finally {
         this.guardando = false;
       }
@@ -714,7 +746,7 @@ export default {
       const deltaY = event.clientY - this.resizeStartY;
       const nuevaAltura = this.resizeStartHeight + deltaY;
       const nuevosSlots = Math.max(1, Math.round(nuevaAltura / 30));
-
+      
       const elemento = event.target.closest('.bloque-horario');
       if (elemento) {
         elemento.style.height = `${nuevosSlots * 30}px`;
