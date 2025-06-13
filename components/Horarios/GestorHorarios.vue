@@ -384,32 +384,57 @@ export default {
       if (!this.semanaSeleccionada) return;
       
       const fechaInicio = this.obtenerFechaInicioSemana();
+      console.log('Generando días para semana:', this.semanaSeleccionada);
+      console.log('Fecha inicio calculada:', fechaInicio);
       
       this.diasSemana = [];
       const nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
       
       for (let i = 0; i < 7; i++) {
-        const fecha = new Date(fechaInicio);
+        const fecha = new Date(fechaInicio + 'T00:00:00'); // Agregar hora para evitar problemas de zona horaria
         fecha.setDate(fecha.getDate() + i);
+        const fechaStr = fecha.toISOString().split('T')[0];
         
         this.diasSemana.push({
           nombre: nombres[i],
-          fecha: fecha.toISOString().split('T')[0],
+          fecha: fechaStr,
           diaSemana: i + 1
         });
       }
+      
+      console.log('Días generados:', this.diasSemana);
     },
 
     obtenerFechaInicioSemana() {
       if (!this.semanaSeleccionada) return '';
       
       const [año, semana] = this.semanaSeleccionada.split('-W');
-      const fecha = new Date(año, 0, 1 + (semana - 1) * 7);
-      const diaSemana = fecha.getDay();
-      const diff = fecha.getDate() - diaSemana + (diaSemana === 0 ? -6 : 1);
-      fecha.setDate(diff);
       
-      return fecha.toISOString().split('T')[0];
+      // Crear fecha del 4 de enero (siempre está en la semana 1)
+      const cuatroEnero = new Date(año, 0, 4);
+      
+      // Encontrar el lunes de esa semana
+      const diaCuatroEnero = cuatroEnero.getDay();
+      const diasHastaLunes = diaCuatroEnero === 0 ? 6 : diaCuatroEnero - 1;
+      const primerLunes = new Date(cuatroEnero);
+      primerLunes.setDate(4 - diasHastaLunes);
+      
+      // Calcular el lunes de la semana solicitada
+      const fechaObjetivo = new Date(primerLunes);
+      fechaObjetivo.setDate(primerLunes.getDate() + (parseInt(semana) - 1) * 7);
+      
+      const resultado = fechaObjetivo.toISOString().split('T')[0];
+      
+      console.log('Cálculo de semana:', {
+        semanaSeleccionada: this.semanaSeleccionada,
+        año: año,
+        semana: semana,
+        cuatroEnero: cuatroEnero.toISOString().split('T')[0],
+        primerLunes: primerLunes.toISOString().split('T')[0],
+        fechaCalculada: resultado
+      });
+      
+      return resultado;
     },
 
     irSemanaAnterior() {
@@ -446,7 +471,7 @@ export default {
     },
 
     obtenerBloquesEnCelda(fecha, hora) {
-      return this.horarios.filter(horario => {
+      const bloques = this.horarios.filter(horario => {
         // Calcular la fecha real del bloque basada en fecha_inicio y dia_semana
         const fechaInicioSemana = new Date(horario.fecha_inicio + 'T00:00:00');
         
@@ -458,19 +483,6 @@ export default {
         
         const fechaBloqueStr = fechaRealBloque.toISOString().split('T')[0];
         
-        // Debug: mostrar información para verificar
-        console.log('Comparando bloque:', {
-          horario_id: horario.id,
-          fecha_inicio_semana: horario.fecha_inicio,
-          dia_semana: horario.dia_semana,
-          fecha_calculada: fechaBloqueStr,
-          fecha_buscada: fecha,
-          hora_inicio: horario.hora_inicio,
-          hora_buscada: hora,
-          coincide_fecha: fechaBloqueStr === fecha,
-          coincide_hora: horario.hora_inicio === hora
-        });
-        
         // Verificar que coincida la fecha calculada
         if (fechaBloqueStr !== fecha) return false;
         
@@ -481,6 +493,30 @@ export default {
         
         return horaInicioBloque === horaBuscada;
       });
+      
+      // Solo mostrar logs si hay bloques o si estamos buscando en una celda específica
+      if (bloques.length > 0 || (fecha.includes('2025-06-17') && hora === '07:00')) {
+        console.log('Buscando bloques en celda:', {
+          fecha_buscada: fecha,
+          hora_buscada: hora,
+          horarios_disponibles: this.horarios.length,
+          bloques_encontrados: bloques.length,
+          detalles_horarios: this.horarios.map(h => ({
+            id: h.id,
+            fecha_inicio: h.fecha_inicio,
+            dia_semana: h.dia_semana,
+            hora_inicio: h.hora_inicio,
+            fecha_calculada: (() => {
+              const fi = new Date(h.fecha_inicio + 'T00:00:00');
+              const fr = new Date(fi);
+              fr.setDate(fr.getDate() + (h.dia_semana - 1));
+              return fr.toISOString().split('T')[0];
+            })()
+          }))
+        });
+      }
+      
+      return bloques;
     },
 
     calcularDuracionSlots(horaInicio, horaFin) {
