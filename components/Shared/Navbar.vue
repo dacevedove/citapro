@@ -15,10 +15,23 @@
         
         <div class="dropdown">
           <button class="dropdown-toggle" @click.stop="toggleDropdown">
-            <i class="fas fa-user-circle"></i>
+            <div class="user-avatar">
+              <img 
+                v-if="userPhoto && !photoError" 
+                :src="getPhotoUrl(userPhoto)" 
+                :alt="'Foto de ' + userName"
+                class="avatar-image"
+                @error="handlePhotoError"
+              >
+              <i v-else class="fas fa-user-circle"></i>
+            </div>
           </button>
           
           <div v-show="showDropdown" class="dropdown-menu">
+            <router-link to="/perfil" @click="closeDropdown" class="dropdown-item">
+              <i class="fas fa-user-edit"></i> Mi Perfil
+            </router-link>
+            <div class="dropdown-divider"></div>
             <a href="#" @click.prevent="logout" class="dropdown-item">
               <i class="fas fa-sign-out-alt"></i> Cerrar sesión
             </a>
@@ -36,8 +49,9 @@ export default {
   name: 'Navbar',
   data() {
     return {
-      showDropdown: false, // Inicialmente cerrado
-      sidebarVisible: true
+      showDropdown: false,
+      sidebarVisible: true,
+      photoError: false
     }
   },
   computed: {
@@ -50,12 +64,17 @@ export default {
     userRole() {
       return this.authStore.userRole;
     },
+    userPhoto() {
+      return this.authStore.user?.foto_perfil;
+    },
     formatRole() {
       switch (this.userRole) {
         case 'admin': return 'Dirección Médica';
         case 'doctor': return 'Doctor';
         case 'aseguradora': return 'Aseguradora';
         case 'paciente': return 'Paciente';
+        case 'coordinador': return 'Coordinador';
+        case 'vertice': return 'Vértice';
         default: return 'Usuario';
       }
     }
@@ -66,11 +85,17 @@ export default {
         event.stopPropagation();
       }
       this.showDropdown = !this.showDropdown;
-      console.log('Dropdown state:', this.showDropdown); // Para debugging
     },
-    toggleSidebar() {
-      this.sidebarVisible = !this.sidebarVisible;
-      document.body.classList.toggle('sidebar-collapsed', !this.sidebarVisible);
+    closeDropdown() {
+      this.showDropdown = false;
+    },
+    getPhotoUrl(photoPath) {
+      if (!photoPath) return '';
+      if (photoPath.startsWith('http')) return photoPath;
+      return window.location.origin + photoPath;
+    },
+    handlePhotoError() {
+      this.photoError = true;
     },
     logout() {
       this.authStore.logout();
@@ -78,7 +103,6 @@ export default {
     }
   },
   mounted() {
-    // Cerrar el dropdown al hacer clic fuera de él
     document.addEventListener('click', (e) => {
       if (!this.$el.contains(e.target)) {
         this.showDropdown = false;
@@ -86,7 +110,6 @@ export default {
     });
   },
   beforeUnmount() {
-    // Limpiar event listener al desmontar el componente
     document.removeEventListener('click', this.closeDropdown);
   }
 }
@@ -106,24 +129,17 @@ export default {
 
 .navbar-container {
   display: flex;
-  justify-content: space-between; /* Mantener space-between para separar brand y user */
+  justify-content: space-between;
   align-items: center;
   padding: 0 20px;
   height: 100%;
-  width: 100%; /* Asegurar que ocupe todo el ancho */
+  width: 100%;
 }
 
 .navbar-brand {
   display: flex;
   align-items: center;
-  flex: 0 0 auto; /* No crecer ni encoger */
-}
-
-.menu-toggle {
-  font-size: 20px;
-  margin-right: 15px;
-  cursor: pointer;
-  color: var(--dark-color);
+  flex: 0 0 auto;
 }
 
 .brand-link {
@@ -139,28 +155,24 @@ export default {
   margin-right: 10px;
 }
 
-.brand-name {
-  font-size: 18px;
-  font-weight: bold;
-}
-
 .navbar-user {
   display: flex;
   align-items: center;
-  flex: 0 0 auto; /* No crecer ni encoger */
-  margin-left: auto; /* Empuja el elemento completamente a la derecha */
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .user-info {
   display: flex;
   flex-direction: column;
   margin-right: 15px;
-  text-align: right; /* Volver a alinear a la derecha */
+  text-align: right;
 }
 
 .user-name {
   font-weight: 500;
   color: var(--dark-color);
+  font-size: 14px;
 }
 
 .user-role {
@@ -177,41 +189,91 @@ export default {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 24px;
-  color: var(--primary-color);
   padding: 5px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.dropdown-toggle:hover {
+  background-color: #f8f9fa;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-avatar i {
+  font-size: 24px;
+  color: white;
 }
 
 .dropdown-menu {
   position: absolute;
-  top: 40px; /* Ajustado para que aparezca debajo del botón */
+  top: 45px;
   right: 0;
-  min-width: 180px;
+  min-width: 200px;
   background-color: #ffffff;
-  border-radius: 4px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   margin-top: 5px;
-  z-index: 9999; /* Valor muy alto para asegurar que esté encima de todo */
-  display: block; /* Asegurar que siempre se muestre cuando v-show es true */
-  visibility: visible !important; /* Forzar visibilidad */
-  opacity: 1 !important; /* Forzar opacidad */
+  z-index: 9999;
+  display: block;
+  visibility: visible !important;
+  opacity: 1 !important;
+  border: 1px solid #e9ecef;
+  overflow: hidden;
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
-  padding: 12px 15px;
+  padding: 12px 16px;
   text-decoration: none;
-  color: var(--dark-color);
-  transition: background-color 0.3s;
+  color: #495057;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .dropdown-item i {
-  margin-right: 10px;
-  color: var(--secondary-color);
+  margin-right: 12px;
+  color: #6c757d;
+  width: 16px;
+  text-align: center;
 }
 
 .dropdown-item:hover {
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
+  color: #495057;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #e9ecef;
+  margin: 4px 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .user-info {
+    display: none;
+  }
+  
+  .navbar-container {
+    padding: 0 15px;
+  }
 }
 </style>
