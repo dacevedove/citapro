@@ -104,10 +104,10 @@
             <div class="franjas-contenedor">
               <div 
                 v-for="franja in franjas" 
-                :key="franja.hora"
+                :key="`${dia.fecha}-${franja.hora}`"
                 class="franja-celda"
                 :style="{ height: franja.altura + 'px' }"
-                @click="crearNuevoBloque(dia.fecha, franja.hora)"
+                @click.stop="crearNuevoBloque(dia.fecha, franja.hora)"
                 :title="`Crear bloque para ${dia.nombre} a las ${franja.horaFormateada}`"
               >
                 <!-- Línea de separación cada hora -->
@@ -669,11 +669,20 @@ export default {
     },
     
     crearNuevoBloque(fecha, hora) {
+      console.log('Creando nuevo bloque:', { fecha, hora });
+      
       // Verificar si ya existe un bloque en esta posición
       const diaSemana = this.diasSemana.find(d => d.fecha === fecha)?.diaSemana;
-      if (!diaSemana) return;
+      if (!diaSemana) {
+        console.error('No se pudo determinar el día de la semana');
+        return;
+      }
+      
+      console.log('Día de la semana:', diaSemana);
       
       const bloquesExistentes = this.obtenerBloquesDelDia(diaSemana);
+      console.log('Bloques existentes en el día:', bloquesExistentes);
+      
       const horaInicioMinutos = this.convertirHoraAMinutos(hora);
       
       // Buscar si hay solapamiento
@@ -691,13 +700,26 @@ export default {
       // Calcular hora de fin sugerida (1 hora por defecto)
       const horaFinSugerida = this.sumarMinutos(hora, 60);
       
+      // Validar que la hora de fin no exceda el horario del calendario
+      const horaFinMaxima = `${this.horaFin}:00`;
+      const horaFinFinal = this.convertirHoraAMinutos(horaFinSugerida) > this.convertirHoraAMinutos(horaFinMaxima) 
+        ? horaFinMaxima 
+        : horaFinSugerida;
+      
+      console.log('Configurando formulario con:', {
+        doctor_id: this.filtros.doctorId,
+        fecha,
+        hora_inicio: hora,
+        hora_fin: horaFinFinal
+      });
+      
       this.formulario = {
         id: null,
         doctor_id: this.filtros.doctorId,
         tipo_bloque_id: '',
         fecha: fecha,
         hora_inicio: hora,
-        hora_fin: horaFinSugerida,
+        hora_fin: horaFinFinal,
         notas: ''
       };
       
@@ -707,6 +729,8 @@ export default {
         guardando: false,
         error: ''
       };
+      
+      console.log('Modal abierto:', this.modal);
     },
     
     editarBloque(bloque) {
@@ -1123,6 +1147,7 @@ export default {
   right: 0;
   bottom: 0;
   z-index: 1;
+  pointer-events: auto;
 }
 
 .franja-celda {
@@ -1130,10 +1155,11 @@ export default {
   cursor: pointer;
   transition: background-color 0.2s;
   position: relative;
+  z-index: 2;
 }
 
 .franja-celda:hover {
-  background-color: rgba(0, 123, 255, 0.05);
+  background-color: rgba(0, 123, 255, 0.08);
 }
 
 .linea-hora {
@@ -1153,6 +1179,7 @@ export default {
   bottom: 0;
   z-index: 10;
   padding: 0 4px;
+  pointer-events: none;
 }
 
 /* Bloques de horario */
@@ -1166,6 +1193,7 @@ export default {
   transition: all 0.2s;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
 }
 
 .bloque-horario:hover {
