@@ -103,11 +103,11 @@ function listarHorarios() {
     $params = [':doctor_id' => $doctor_id];
     
     if ($fecha_inicio) {
-        // Calcular fecha fin de la semana
-        $fecha_fin = date('Y-m-d', strtotime($fecha_inicio . ' +6 days'));
-        $sql .= " AND h.fecha_inicio BETWEEN :fecha_inicio AND :fecha_fin";
+        // Simplificar: buscar exactamente por fecha_inicio
+        $sql .= " AND h.fecha_inicio = :fecha_inicio";
         $params[':fecha_inicio'] = $fecha_inicio;
-        $params[':fecha_fin'] = $fecha_fin;
+        
+        error_log("Buscando horarios con fecha_inicio: $fecha_inicio");
     }
     
     $sql .= " ORDER BY h.fecha_inicio, h.dia_semana, h.hora_inicio";

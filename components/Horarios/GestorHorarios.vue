@@ -326,9 +326,16 @@ export default {
         const token = localStorage.getItem('token');
         const fechaInicio = this.obtenerFechaInicioSemana();
         
+        console.log('Cargando horarios para:', {
+          doctor_id: this.doctorSeleccionado,
+          fecha_inicio: fechaInicio
+        });
+        
         const response = await axios.get(`/api/horarios/gestionar.php?doctor_id=${this.doctorSeleccionado}&fecha_inicio=${fechaInicio}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        
+        console.log('Horarios recibidos del servidor:', response.data);
         
         this.horarios = response.data.map(horario => ({
           ...horario,
@@ -337,6 +344,8 @@ export default {
           duracion_slots: this.calcularDuracionSlots(horario.hora_inicio, horario.hora_fin),
           tooltip: `${this.obtenerNombreTipo(horario.tipo_bloque_id)}\n${horario.hora_inicio} - ${horario.hora_fin}`
         }));
+        
+        console.log('Horarios procesados:', this.horarios);
         
         this.generarDiasSemana();
       } catch (error) {
@@ -438,16 +447,39 @@ export default {
 
     obtenerBloquesEnCelda(fecha, hora) {
       return this.horarios.filter(horario => {
-        // Comparar fecha de inicio de semana y día
-        const fechaDelBloque = new Date(horario.fecha_inicio);
-        const diasAgregar = horario.dia_semana - 1; // dia_semana es 1-7
-        fechaDelBloque.setDate(fechaDelBloque.getDate() + diasAgregar);
-        const fechaBloqueStr = fechaDelBloque.toISOString().split('T')[0];
+        // Calcular la fecha real del bloque basada en fecha_inicio y dia_semana
+        const fechaInicioSemana = new Date(horario.fecha_inicio + 'T00:00:00');
         
+        // dia_semana: 1=Lunes, 2=Martes, ..., 7=Domingo
+        // Ajustar para obtener la fecha correcta
+        const diasAgregar = horario.dia_semana - 1;
+        const fechaRealBloque = new Date(fechaInicioSemana);
+        fechaRealBloque.setDate(fechaRealBloque.getDate() + diasAgregar);
+        
+        const fechaBloqueStr = fechaRealBloque.toISOString().split('T')[0];
+        
+        // Debug: mostrar información para verificar
+        console.log('Comparando bloque:', {
+          horario_id: horario.id,
+          fecha_inicio_semana: horario.fecha_inicio,
+          dia_semana: horario.dia_semana,
+          fecha_calculada: fechaBloqueStr,
+          fecha_buscada: fecha,
+          hora_inicio: horario.hora_inicio,
+          hora_buscada: hora,
+          coincide_fecha: fechaBloqueStr === fecha,
+          coincide_hora: horario.hora_inicio === hora
+        });
+        
+        // Verificar que coincida la fecha calculada
         if (fechaBloqueStr !== fecha) return false;
         
-        const horaInicioBloque = horario.hora_inicio;
-        return horaInicioBloque === hora;
+        // Verificar que coincida la hora de inicio
+        // Normalizar el formato de hora (quitar segundos si los tiene)
+        const horaInicioBloque = horario.hora_inicio.substring(0, 5); // "07:00:00" -> "07:00"
+        const horaBuscada = hora.substring(0, 5); // Por si acaso tiene segundos
+        
+        return horaInicioBloque === horaBuscada;
       });
     },
 
