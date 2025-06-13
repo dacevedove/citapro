@@ -106,9 +106,13 @@
                 v-for="franja in franjas" 
                 :key="`${dia.fecha}-${franja.hora}`"
                 class="franja-celda"
+                :class="{ 
+                  'franja-ocupada': esFranjaOcupada(dia.diaSemana, franja.hora),
+                  'franja-disponible': !esFranjaOcupada(dia.diaSemana, franja.hora)
+                }"
                 :style="{ height: franja.altura + 'px' }"
-                @click.stop="crearNuevoBloque(dia.fecha, franja.hora)"
-                :title="`Crear bloque para ${dia.nombre} a las ${franja.horaFormateada}`"
+                @click.stop="!esFranjaOcupada(dia.diaSemana, franja.hora) && crearNuevoBloque(dia.fecha, franja.hora)"
+                :title="obtenerTituloFranja(dia, franja)"
               >
                 <!-- Línea de separación cada hora -->
                 <div v-if="franja.esInicioHora" class="linea-hora"></div>
@@ -750,7 +754,7 @@ export default {
     },
     
     crearNuevoBloque(fecha, hora) {
-      console.log('Creando nuevo bloque:', { fecha, hora });
+      console.log('🎯 Creando nuevo bloque:', { fecha, hora });
       
       // Verificar si ya existe un bloque en esta posición
       const diaSemana = this.diasSemana.find(d => d.fecha === fecha)?.diaSemana;
@@ -759,14 +763,11 @@ export default {
         return;
       }
       
-      console.log('Día de la semana:', diaSemana);
-      
+      // Esta validación ya no es necesaria porque las celdas ocupadas no son clickeables
+      // pero la mantenemos por seguridad
       const bloquesExistentes = this.obtenerBloquesDelDia(diaSemana);
-      console.log('Bloques existentes en el día:', bloquesExistentes);
-      
       const horaInicioMinutos = this.convertirHoraAMinutos(hora);
       
-      // Buscar si hay solapamiento
       const hayConflicto = bloquesExistentes.some(bloque => {
         const bloqueInicio = this.convertirHoraAMinutos(bloque.hora_inicio);
         const bloqueFin = this.convertirHoraAMinutos(bloque.hora_fin);
@@ -774,7 +775,7 @@ export default {
       });
       
       if (hayConflicto) {
-        alert('Ya existe un bloque horario en esta franja');
+        console.log('⚠️ Conflicto detectado, bloque no debería ser clickeable');
         return;
       }
       
@@ -787,12 +788,7 @@ export default {
         ? horaFinMaxima 
         : horaFinSugerida;
       
-      console.log('Configurando formulario con:', {
-        doctor_id: this.filtros.doctorId,
-        fecha,
-        hora_inicio: hora,
-        hora_fin: horaFinFinal
-      });
+      console.log('✅ Configurando formulario para nuevo bloque');
       
       this.formulario = {
         id: null,
@@ -810,8 +806,40 @@ export default {
         guardando: false,
         error: ''
       };
+    },
+
+    // Nueva función para verificar si una franja está ocupada
+    esFranjaOcupada(diaSemana, hora) {
+      const bloquesDelDia = this.obtenerBloquesDelDia(diaSemana);
+      const horaMinutos = this.convertirHoraAMinutos(hora);
       
-      console.log('Modal abierto:', this.modal);
+      return bloquesDelDia.some(bloque => {
+        const bloqueInicio = this.convertirHoraAMinutos(bloque.hora_inicio);
+        const bloqueFin = this.convertirHoraAMinutos(bloque.hora_fin);
+        return horaMinutos >= bloqueInicio && horaMinutos < bloqueFin;
+      });
+    },
+
+    // Nueva función para obtener el título apropiado para cada franja
+    obtenerTituloFranja(dia, franja) {
+      if (this.esFranjaOcupada(dia.diaSemana, franja.hora)) {
+        // Encontrar el bloque que ocupa esta franja
+        const bloquesDelDia = this.obtenerBloquesDelDia(dia.diaSemana);
+        const horaMinutos = this.convertirHoraAMinutos(franja.hora);
+        
+        const bloque = bloquesDelDia.find(b => {
+          const inicio = this.convertirHoraAMinutos(b.hora_inicio);
+          const fin = this.convertirHoraAMinutos(b.hora_fin);
+          return horaMinutos >= inicio && horaMinutos < fin;
+        });
+        
+        if (bloque) {
+          return `Ocupado por: ${this.obtenerNombreTipo(bloque.tipo_bloque_id)} (${this.formatearHora(bloque.hora_inicio)} - ${this.formatearHora(bloque.hora_fin)})`;
+        }
+        return 'Franja ocupada';
+      }
+      
+      return `Crear bloque para ${dia.nombre} a las ${franja.horaFormateada}`;
     },
     
     editarBloque(bloque) {
@@ -1286,8 +1314,24 @@ export default {
   z-index: 2;
 }
 
-.franja-celda:hover {
+.franja-celda.franja-disponible:hover {
   background-color: rgba(0, 123, 255, 0.08);
+}
+
+.franja-celda.franja-ocupada {
+  background-color: rgba(108, 117, 125, 0.1);
+  cursor: not-allowed;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 2px,
+    rgba(108, 117, 125, 0.1) 2px,
+    rgba(108, 117, 125, 0.1) 4px
+  );
+}
+
+.franja-celda.franja-ocupada:hover {
+  background-color: rgba(108, 117, 125, 0.15);
 }
 
 .linea-hora {
