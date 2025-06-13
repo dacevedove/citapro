@@ -389,18 +389,19 @@ export default {
         diasAtras = dia - 1;
       }
       
-      const inicioSemana = new Date(fecha);
-      inicioSemana.setDate(fecha.getDate() - diasAtras);
+      // CREAR UNA NUEVA FECHA PARA NO MUTAR LA ORIGINAL
+      const inicioSemana = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate() - diasAtras);
       
-      // Usar la misma lógica que calcularInicioSemanaDesdefecha para consistencia
       const resultado = inicioSemana.toISOString().split('T')[0];
       
-      console.log('🔍 Cálculo inicioSemana computed:', {
+      console.log('🔍 Cálculo inicioSemana computed FIXED:', {
         semana_actual: this.semanaActual,
+        fecha_trabajo: fecha,
         dia_semana_js: dia,
         dias_atras: diasAtras,
+        fecha_menos_dias: fecha.getDate() - diasAtras,
         inicio_calculado: resultado,
-        fecha_objeto: inicioSemana
+        fecha_objeto_final: inicioSemana
       });
       
       return new Date(resultado + 'T00:00:00');
@@ -951,16 +952,19 @@ export default {
         diasAtras = diaSemana - 1;
       }
       
-      const inicioSemana = new Date(fechaObj);
-      inicioSemana.setDate(fechaObj.getDate() - diasAtras);
+      // CREAR NUEVA FECHA PARA NO MUTAR
+      const inicioSemana = new Date(fechaObj.getFullYear(), fechaObj.getMonth(), fechaObj.getDate() - diasAtras);
       
       const resultado = inicioSemana.toISOString().split('T')[0];
       
-      console.log('Cálculo inicio semana:', {
+      console.log('🔍 Cálculo inicio semana FIXED:', {
         fecha_original: fecha,
+        fecha_objeto: fechaObj,
         dia_semana_js: diaSemana,
         dias_atras: diasAtras,
-        fecha_inicio_calculada: resultado
+        fecha_menos_dias: fechaObj.getDate() - diasAtras,
+        fecha_inicio_calculada: resultado,
+        inicio_semana_objeto: inicioSemana
       });
       
       return resultado;
