@@ -10,9 +10,9 @@
         <div class="photo-container">
           <div class="current-photo">
             <img 
-              v-if="userData.foto_perfil" 
+              v-if="userData.foto_perfil && !imageError" 
               :src="getPhotoUrl(userData.foto_perfil)" 
-              :alt="`Foto de ${userData.nombre}`"
+              :alt="'Foto de ' + userData.nombre"
               class="profile-photo"
               @error="handleImageError"
             >
@@ -110,7 +110,7 @@
             >
             <button 
               type="button" 
-              @click="showCurrentPassword = !showCurrentPassword"
+              @click="toggleCurrentPassword"
               class="password-toggle"
             >
               <i :class="showCurrentPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
@@ -130,7 +130,7 @@
             >
             <button 
               type="button" 
-              @click="showNewPassword = !showNewPassword"
+              @click="toggleNewPassword"
               class="password-toggle"
             >
               <i :class="showNewPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
@@ -159,7 +159,7 @@
             >
             <button 
               type="button" 
-              @click="showConfirmPassword = !showConfirmPassword"
+              @click="toggleConfirmPassword"
               class="password-toggle"
             >
               <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
@@ -231,7 +231,6 @@
 </template>
 
 <script>
-import { useAuthStore } from '../../store/auth';
 import axios from 'axios';
 
 export default {
@@ -264,13 +263,11 @@ export default {
       uploadProgress: 0,
       showCurrentPassword: false,
       showNewPassword: false,
-      showConfirmPassword: false
+      showConfirmPassword: false,
+      imageError: false
     }
   },
   computed: {
-    authStore() {
-      return useAuthStore();
-    },
     canUpdatePassword() {
       return this.passwordData.currentPassword && 
              this.passwordData.newPassword && 
@@ -282,14 +279,22 @@ export default {
   methods: {
     async loadUserData() {
       try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          this.showMessage('No hay sesión activa', 'error');
+          return;
+        }
+
         const response = await axios.get('/api/auth/update_profile.php', {
           headers: {
-            'Authorization': `Bearer ${this.authStore.token}`
+            'Authorization': 'Bearer ' + token
           }
         });
         
         if (response.data.success) {
-          this.userData = { ...response.data.user };
+          this.userData = Object.assign({}, response.data.user);
+        } else {
+          this.showMessage('Error al cargar datos del perfil', 'error');
         }
       } catch (error) {
         console.error('Error al cargar datos del usuario:', error);
@@ -299,30 +304,25 @@ export default {
     
     getPhotoUrl(photoPath) {
       if (!photoPath) return '';
-      // Si ya es una URL completa, devolverla tal como está
       if (photoPath.startsWith('http')) return photoPath;
-      // Si es una ruta relativa, construir la URL completa
       return window.location.origin + photoPath;
     },
     
-    handleImageError(event) {
-      // Si hay error al cargar la imagen, mostrar placeholder
-      event.target.style.display = 'none';
-      event.target.nextElementSibling?.style?.display = 'flex';
+    handleImageError() {
+      this.imageError = true;
     },
     
     async handlePhotoUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
       
-      // Validaciones del lado del cliente
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
       if (!allowedTypes.includes(file.type.toLowerCase())) {
         this.showMessage('Tipo de archivo no permitido. Solo se permiten imágenes (JPEG, PNG, GIF, WebP)', 'error');
         return;
       }
       
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         this.showMessage('El archivo es demasiado grande. Tamaño máximo: 5MB', 'error');
         return;
@@ -335,9 +335,10 @@ export default {
         const formData = new FormData();
         formData.append('photo', file);
         
+        const token = localStorage.getItem('token');
         const response = await axios.post('/api/auth/upload_profile_photo.php', formData, {
           headers: {
-            'Authorization': `Bearer ${this.authStore.token}`,
+            'Authorization': 'Bearer ' + token,
             'Content-Type': 'multipart/form-data'
           },
           onUploadProgress: (progressEvent) => {
@@ -347,11 +348,7 @@ export default {
         
         if (response.data.success) {
           this.userData.foto_perfil = response.data.photo_url;
-          // Actualizar también en el store de autenticación
-          this.authStore.updateUserData({
-            ...this.authStore.user,
-            foto_perfil: response.data.photo_url
-          });
+          this.imageError = false;
           this.showMessage('Foto de perfil actualizada correctamente', 'success');
         } else {
           this.showMessage(response.data.error || 'Error al subir la foto', 'error');
@@ -362,7 +359,6 @@ export default {
       } finally {
         this.uploadingPhoto = false;
         this.uploadProgress = 0;
-        // Limpiar el input file
         event.target.value = '';
       }
     },
@@ -373,19 +369,15 @@ export default {
       }
       
       try {
+        const token = localStorage.getItem('token');
         const response = await axios.delete('/api/auth/delete_profile_photo.php', {
           headers: {
-            'Authorization': `Bearer ${this.authStore.token}`
+            'Authorization': 'Bearer ' + token
           }
         });
         
         if (response.data.success) {
           this.userData.foto_perfil = null;
-          // Actualizar también en el store de autenticación
-          this.authStore.updateUserData({
-            ...this.authStore.user,
-            foto_perfil: null
-          });
           this.showMessage('Foto de perfil eliminada correctamente', 'success');
         } else {
           this.showMessage(response.data.error || 'Error al eliminar la foto', 'error');
@@ -400,6 +392,7 @@ export default {
       this.updatingProfile = true;
       
       try {
+        const token = localStorage.getItem('token');
         const response = await axios.post('/api/auth/update_profile.php', {
           id: this.userData.id,
           nombre: this.userData.nombre,
@@ -407,19 +400,11 @@ export default {
           telefono: this.userData.telefono
         }, {
           headers: {
-            'Authorization': `Bearer ${this.authStore.token}`
+            'Authorization': 'Bearer ' + token
           }
         });
         
         if (response.data.success) {
-          // Actualizar datos en el store
-          this.authStore.updateUserData({
-            ...this.authStore.user,
-            nombre: this.userData.nombre,
-            apellido: this.userData.apellido,
-            telefono: this.userData.telefono
-          });
-          
           this.showMessage('Datos actualizados correctamente', 'success');
         } else {
           this.showMessage(response.data.error || 'Error al actualizar datos', 'error');
@@ -441,13 +426,14 @@ export default {
       this.updatingPassword = true;
       
       try {
+        const token = localStorage.getItem('token');
         const response = await axios.post('/api/auth/change_password.php', {
           id: this.userData.id,
           current_password: this.passwordData.currentPassword,
           new_password: this.passwordData.newPassword
         }, {
           headers: {
-            'Authorization': `Bearer ${this.authStore.token}`
+            'Authorization': 'Bearer ' + token
           }
         });
         
@@ -474,20 +460,11 @@ export default {
       
       let strength = 0;
       
-      // Longitud
       if (password.length >= 8) strength += 20;
       if (password.length >= 12) strength += 10;
-      
-      // Minúsculas
       if (/[a-z]/.test(password)) strength += 20;
-      
-      // Mayúsculas
       if (/[A-Z]/.test(password)) strength += 20;
-      
-      // Números
       if (/[0-9]/.test(password)) strength += 20;
-      
-      // Caracteres especiales
       if (/[^A-Za-z0-9]/.test(password)) strength += 10;
       
       return Math.min(strength, 100);
@@ -522,17 +499,33 @@ export default {
       return roles[role] || role;
     },
     
-    showMessage(text, type = 'success') {
+    showMessage(text, type) {
       this.message = text;
-      this.messageType = type;
+      this.messageType = type || 'success';
       
-      // Auto-ocultar mensaje después de 5 segundos
       setTimeout(() => {
         this.message = '';
       }, 5000);
+    },
+    
+    toggleCurrentPassword() {
+      this.showCurrentPassword = !this.showCurrentPassword;
+    },
+    
+    toggleNewPassword() {
+      this.showNewPassword = !this.showNewPassword;
+    },
+    
+    toggleConfirmPassword() {
+      this.showConfirmPassword = !this.showConfirmPassword;
     }
   },
- </script> 
+  
+  mounted() {
+    this.loadUserData();
+  }
+}
+</script>
 
 <style scoped>
 .perfil-container {
@@ -545,14 +538,14 @@ export default {
 }
 
 h1 {
-  color: var(--primary-color);
+  color: #007bff;
   margin-bottom: 30px;
   font-size: 2rem;
   text-align: center;
 }
 
 h2 {
-  color: var(--secondary-color);
+  color: #6c757d;
   margin: 30px 0 20px;
   font-size: 1.4rem;
   border-bottom: 2px solid #e9ecef;
@@ -560,7 +553,7 @@ h2 {
 }
 
 h3 {
-  color: var(--dark-color);
+  color: #343a40;
   margin: 20px 0 15px;
   font-size: 1.2rem;
 }
@@ -588,7 +581,7 @@ h3 {
   height: 150px;
   border-radius: 50%;
   overflow: hidden;
-  border: 4px solid var(--primary-color);
+  border: 4px solid #007bff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
@@ -611,7 +604,7 @@ h3 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--secondary-color);
+  color: #6c757d;
 }
 
 .no-photo i {
@@ -646,14 +639,14 @@ h3 {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary-color), #28a745);
+  background: linear-gradient(90deg, #007bff, #28a745);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
 
 .progress-text {
   font-size: 0.8rem;
-  color: var(--secondary-color);
+  color: #6c757d;
   font-weight: 500;
 }
 
@@ -663,13 +656,13 @@ h3 {
 }
 
 .photo-requirements small {
-  color: var(--secondary-color);
+  color: #6c757d;
   font-size: 0.8rem;
   line-height: 1.4;
 }
 
 .photo-requirements i {
-  color: var(--primary-color);
+  color: #007bff;
   margin-right: 5px;
 }
 
@@ -694,7 +687,7 @@ label {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
-  color: var(--dark-color);
+  color: #343a40;
   font-size: 0.95rem;
 }
 
@@ -706,24 +699,25 @@ label {
   font-size: 16px;
   transition: all 0.3s ease;
   background-color: #fff;
+  box-sizing: border-box;
 }
 
 .form-control:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: #007bff;
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
 .form-control.disabled {
   background-color: #f8f9fa;
-  color: var(--secondary-color);
+  color: #6c757d;
   cursor: not-allowed;
 }
 
 .form-text {
   margin-top: 5px;
   font-size: 0.8rem;
-  color: var(--secondary-color);
+  color: #6c757d;
 }
 
 /* Inputs de contraseña */
@@ -738,7 +732,7 @@ label {
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: var(--secondary-color);
+  color: #6c757d;
   cursor: pointer;
   padding: 5px;
   border-radius: 4px;
@@ -746,7 +740,7 @@ label {
 }
 
 .password-toggle:hover {
-  color: var(--primary-color);
+  color: #007bff;
 }
 
 /* Medidor de fuerza de contraseña */
@@ -841,12 +835,12 @@ label {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-color), #0056b3);
+  background: linear-gradient(135deg, #007bff, #0056b3);
   color: white;
 }
 
 .btn-secondary {
-  background: linear-gradient(135deg, var(--secondary-color), #545b62);
+  background: linear-gradient(135deg, #6c757d, #545b62);
   color: white;
 }
 
@@ -913,14 +907,14 @@ label {
 
 .info-item label {
   font-size: 0.85rem;
-  color: var(--secondary-color);
+  color: #6c757d;
   font-weight: 500;
   margin-bottom: 0;
 }
 
 .info-item span {
   font-weight: 600;
-  color: var(--dark-color);
+  color: #343a40;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -986,50 +980,4 @@ label {
   .btn {
     min-width: auto;
   }
-  
-  .photo-actions {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .info-grid {
-    grid-template-columns: 1fr;
-    gap: 15px;
-  }
-  
-  .current-photo {
-    width: 120px;
-    height: 120px;
-  }
-  
-  .no-photo i {
-    font-size: 2.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  h1 {
-    font-size: 1.6rem;
-  }
-  
-  h2 {
-    font-size: 1.2rem;
-  }
-  
-  .current-photo {
-    width: 100px;
-    height: 100px;
-  }
-  
-  .no-photo i {
-    font-size: 2rem;
-  }
-}
-
-/* CSS Variables - deben estar definidas en tu archivo principal */
-:root {
-  --primary-color: #007bff;
-  --secondary-color: #6c757d;
-  --dark-color: #343a40;
-}
-</style>
+  </style>
