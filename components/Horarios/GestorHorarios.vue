@@ -1,106 +1,156 @@
 <template>
   <div class="gestor-horarios-container">
+    <!-- Header -->
     <div class="header-section">
       <h1>Gestión de Horarios</h1>
       <div class="header-controls">
-        <div class="doctor-selector" v-if="userRole === 'admin' || userRole === 'coordinador'">
+        <!-- Selector de Doctor (solo para admin/coordinador) -->
+        <div class="control-group" v-if="userRole !== 'doctor'">
           <label>Doctor:</label>
-          <select v-model="doctorSeleccionado" @change="cargarHorarios" class="form-control">
+          <select 
+            v-model="filtros.doctorId" 
+            @change="onDoctorChange"
+            class="form-control"
+          >
             <option value="">Seleccione un doctor</option>
-            <option v-for="doctor in doctores" :key="doctor.id" :value="doctor.id">
+            <option 
+              v-for="doctor in doctores" 
+              :key="doctor.id" 
+              :value="doctor.id"
+            >
               {{ doctor.nombre }} {{ doctor.apellido }} - {{ doctor.especialidad_nombre }}
             </option>
           </select>
         </div>
-        
-        <div class="week-selector">
-          <label>Semana:</label>
-          <input 
-            type="week" 
-            v-model="semanaSeleccionada" 
-            @change="cargarHorarios"
-            class="form-control"
-          />
+
+        <!-- Navegación de semanas -->
+        <div class="semana-navegacion">
+          <button @click="navegarSemana(-1)" class="btn btn-outline">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <div class="semana-info">
+            <span class="semana-titulo">{{ formatoSemanaActual }}</span>
+            <span class="fecha-rango">{{ rangoFechas }}</span>
+          </div>
+          <button @click="navegarSemana(1)" class="btn btn-outline">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+          <button @click="irSemanaActual" class="btn btn-primary">Hoy</button>
         </div>
-        
-        <button @click="irSemanaAnterior" class="btn btn-outline">
-          <i class="fas fa-chevron-left"></i>
-        </button>
-        <button @click="irSemanaActual" class="btn btn-outline">Hoy</button>
-        <button @click="irSemanaSiguiente" class="btn btn-outline">
-          <i class="fas fa-chevron-right"></i>
-        </button>
       </div>
     </div>
 
-    <div v-if="loading" class="loading-container">
+    <!-- Estados de carga y error -->
+    <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
       <p>Cargando horarios...</p>
     </div>
 
-    <div v-else-if="!doctorSeleccionado && (userRole === 'admin' || userRole === 'coordinador')" class="empty-state">
-      <i class="fas fa-user-md"></i>
-      <p>Seleccione un doctor para gestionar sus horarios</p>
+    <div v-else-if="error" class="alert alert-danger">
+      <i class="fas fa-exclamation-triangle"></i>
+      {{ error }}
+      <button @click="recargar" class="btn btn-sm btn-outline">Reintentar</button>
     </div>
 
-    <div v-else class="horarios-grid">
-      <!-- Header con días de la semana -->
-      <div class="grid-header">
-        <div class="time-column-header">Hora</div>
-        <div v-for="dia in diasSemana" :key="dia.fecha" class="day-header">
-          <div class="day-name">{{ dia.nombre }}</div>
-          <div class="day-date">{{ formatearFechaCompleta(dia.fecha) }}</div>
-        </div>
-      </div>
+    <div v-else-if="!filtros.doctorId && userRole !== 'doctor'" class="empty-state">
+      <i class="fas fa-user-md"></i>
+      <h3>Seleccione un doctor</h3>
+      <p>Elija un doctor para gestionar sus horarios semanales</p>
+    </div>
 
+    <!-- Grid principal de horarios -->
+    <div v-else class="calendario-container">
       <!-- Grid de horarios -->
-      <div class="grid-body">
-        <div class="time-slots">
+      <div class="calendario-grid">
+        <!-- Header del calendario -->
+        <div class="calendario-header">
+          <div class="hora-header">Hora</div>
           <div 
-            v-for="hora in horasDisponibles" 
-            :key="hora"
-            class="time-slot"
+            v-for="dia in diasSemana" 
+            :key="dia.fecha"
+            class="dia-header"
+            :class="{ 'dia-hoy': dia.esHoy }"
           >
-            {{ hora }}
+            <div class="dia-nombre">{{ dia.nombre }}</div>
+            <div class="dia-fecha">{{ dia.fechaFormateada }}</div>
+            <div class="dia-estadisticas">
+              {{ dia.totalBloques }} bloque{{ dia.totalBloques !== 1 ? 's' : '' }}
+            </div>
           </div>
         </div>
 
-        <div 
-          v-for="dia in diasSemana" 
-          :key="dia.fecha"
-          class="day-column"
-          @drop="onDrop($event, dia.fecha)"
-          @dragover.prevent
-          @dragenter.prevent
-        >
-          <div 
-            v-for="hora in horasDisponibles" 
-            :key="`${dia.fecha}-${hora}`"
-            class="time-cell"
-            :data-fecha="dia.fecha"
-            :data-hora="hora"
-            @click="iniciarNuevoBloque(dia.fecha, hora)"
-          >
-            <!-- Bloques existentes -->
+        <!-- Cuerpo del calendario -->
+        <div class="calendario-cuerpo">
+          <!-- Columna de horas -->
+          <div class="horas-columna">
             <div 
-              v-for="bloque in obtenerBloquesEnCelda(dia.fecha, hora)"
-              :key="bloque.id"
-              class="bloque-horario"
-              :style="{ 
-                backgroundColor: bloque.color, 
-                height: `${bloque.duracion_slots * 30}px`,
-                zIndex: 10
-              }"
-              :title="bloque.tooltip"
-              draggable="true"
-              @dragstart="onDragStart($event, bloque)"
-              @click.stop="editarBloque(bloque)"
+              v-for="franja in franjas" 
+              :key="franja.hora"
+              class="franja-hora"
+              :style="{ height: franja.altura + 'px' }"
             >
-              <div class="bloque-content">
-                <div class="bloque-tipo">{{ bloque.tipo_nombre }}</div>
-                <div class="bloque-tiempo">{{ bloque.hora_inicio }} - {{ bloque.hora_fin }}</div>
+              {{ franja.horaFormateada }}
+            </div>
+          </div>
+
+          <!-- Columnas de días -->
+          <div 
+            v-for="dia in diasSemana" 
+            :key="dia.fecha"
+            class="dia-columna"
+            :class="{ 'dia-hoy': dia.esHoy }"
+          >
+            <!-- Grid de franjas para este día -->
+            <div class="franjas-contenedor">
+              <div 
+                v-for="franja in franjas" 
+                :key="franja.hora"
+                class="franja-celda"
+                :style="{ height: franja.altura + 'px' }"
+                @click="crearNuevoBloque(dia.fecha, franja.hora)"
+                :title="`Crear bloque para ${dia.nombre} a las ${franja.horaFormateada}`"
+              >
+                <!-- Línea de separación cada hora -->
+                <div v-if="franja.esInicioHora" class="linea-hora"></div>
               </div>
-              <div class="bloque-resize-handle" @mousedown="iniciarResize($event, bloque)"></div>
+            </div>
+
+            <!-- Bloques de horario para este día -->
+            <div class="bloques-contenedor">
+              <div
+                v-for="bloque in obtenerBloquesDelDia(dia.diaSemana)"
+                :key="bloque.id"
+                class="bloque-horario"
+                :style="calcularEstiloBloque(bloque)"
+                @click="editarBloque(bloque)"
+                :title="bloque.tooltip"
+              >
+                <div class="bloque-contenido">
+                  <div class="bloque-tipo">{{ bloque.tipo_nombre }}</div>
+                  <div class="bloque-tiempo">
+                    {{ formatearHora(bloque.hora_inicio) }} - {{ formatearHora(bloque.hora_fin) }}
+                  </div>
+                  <div v-if="bloque.notas" class="bloque-notas">
+                    {{ bloque.notas.substring(0, 30) }}{{ bloque.notas.length > 30 ? '...' : '' }}
+                  </div>
+                </div>
+                <div class="bloque-acciones">
+                  <button 
+                    @click.stop="editarBloque(bloque)"
+                    class="btn-icono"
+                    title="Editar"
+                  >
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button 
+                    @click.stop="eliminarBloque(bloque)"
+                    class="btn-icono btn-peligro"
+                    title="Eliminar"
+                  >
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -108,102 +158,158 @@
     </div>
 
     <!-- Modal para crear/editar bloque -->
-    <div v-if="showModal" class="modal-overlay">
-      <div class="modal-container">
+    <div v-if="modal.mostrar" class="modal-overlay" @click="cerrarModal">
+      <div class="modal-container" @click.stop>
         <div class="modal-header">
-          <h2>{{ editandoBloque ? 'Editar Bloque' : 'Nuevo Bloque Horario' }}</h2>
-          <button @click="cerrarModal" class="close-btn">&times;</button>
+          <h2>
+            <i class="fas fa-clock"></i>
+            {{ modal.esEdicion ? 'Editar Bloque Horario' : 'Nuevo Bloque Horario' }}
+          </h2>
+          <button @click="cerrarModal" class="btn-cerrar">&times;</button>
         </div>
         
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Tipo de Bloque:</label>
-            <select v-model="bloqueForm.tipo_bloque_id" class="form-control" required>
+        <form @submit.prevent="guardarBloque" class="modal-cuerpo">
+          <!-- Tipo de bloque -->
+          <div class="form-grupo">
+            <label class="form-etiqueta">
+              <i class="fas fa-tag"></i>
+              Tipo de Bloque *
+            </label>
+            <select 
+              v-model="formulario.tipo_bloque_id" 
+              class="form-control"
+              required
+            >
               <option value="">Seleccione un tipo</option>
               <option 
                 v-for="tipo in tiposBloque" 
                 :key="tipo.id" 
                 :value="tipo.id"
-                :style="{ backgroundColor: tipo.color, color: 'white' }"
               >
                 {{ tipo.nombre }}
               </option>
             </select>
+            <div class="vista-previa-color" v-if="colorSeleccionado">
+              <div 
+                class="muestra-color" 
+                :style="{ backgroundColor: colorSeleccionado }"
+              ></div>
+              <span>{{ nombreTipoSeleccionado }}</span>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label>Fecha:</label>
+          <!-- Fecha -->
+          <div class="form-grupo">
+            <label class="form-etiqueta">
+              <i class="fas fa-calendar"></i>
+              Fecha *
+            </label>
             <input 
               type="date" 
-              v-model="bloqueForm.fecha" 
+              v-model="formulario.fecha" 
               class="form-control"
+              :min="fechaMinima"
+              :max="fechaMaxima"
               required
-              @change="actualizarDiaSemana"
             />
-            <small class="form-text">{{ obtenerNombreDia(bloqueForm.fecha) }}</small>
+            <small class="form-ayuda">
+              {{ obtenerNombreDia(formulario.fecha) }}
+            </small>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>Hora Inicio:</label>
-              <input 
-                type="time" 
-                v-model="bloqueForm.hora_inicio" 
+          <!-- Horarios -->
+          <div class="form-fila">
+            <div class="form-grupo">
+              <label class="form-etiqueta">
+                <i class="fas fa-play"></i>
+                Hora Inicio *
+              </label>
+              <select 
+                v-model="formulario.hora_inicio" 
                 class="form-control"
-                step="1800"
                 required
-              />
+              >
+                <option value="">Seleccione</option>
+                <option 
+                  v-for="hora in horasDisponibles" 
+                  :key="hora.valor" 
+                  :value="hora.valor"
+                >
+                  {{ hora.texto }}
+                </option>
+              </select>
             </div>
             
-            <div class="form-group">
-              <label>Hora Fin:</label>
-              <input 
-                type="time" 
-                v-model="bloqueForm.hora_fin" 
+            <div class="form-grupo">
+              <label class="form-etiqueta">
+                <i class="fas fa-stop"></i>
+                Hora Fin *
+              </label>
+              <select 
+                v-model="formulario.hora_fin" 
                 class="form-control"
-                step="1800"
                 required
-              />
+              >
+                <option value="">Seleccione</option>
+                <option 
+                  v-for="hora in horasFinDisponibles" 
+                  :key="hora.valor" 
+                  :value="hora.valor"
+                  :disabled="hora.deshabilitada"
+                >
+                  {{ hora.texto }}
+                </option>
+              </select>
             </div>
           </div>
 
-          <div class="form-group">
-            <label>Notas:</label>
+          <!-- Duración calculada -->
+          <div v-if="duracionCalculada" class="duracion-info">
+            <i class="fas fa-clock"></i>
+            Duración: {{ duracionCalculada }}
+          </div>
+
+          <!-- Notas -->
+          <div class="form-grupo">
+            <label class="form-etiqueta">
+              <i class="fas fa-sticky-note"></i>
+              Notas
+            </label>
             <textarea 
-              v-model="bloqueForm.notas" 
+              v-model="formulario.notas" 
               class="form-control"
               rows="3"
               placeholder="Notas adicionales (opcional)"
+              maxlength="500"
             ></textarea>
+            <small class="form-ayuda">
+              {{ formulario.notas ? formulario.notas.length : 0 }}/500 caracteres
+            </small>
           </div>
 
-          <div v-if="errorModal" class="alert alert-danger">
-            {{ errorModal }}
+          <!-- Error del modal -->
+          <div v-if="modal.error" class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ modal.error }}
           </div>
 
+          <!-- Botones del modal -->
           <div class="modal-footer">
             <button type="button" @click="cerrarModal" class="btn btn-outline">
+              <i class="fas fa-times"></i>
               Cancelar
             </button>
             <button 
-              v-if="editandoBloque" 
-              type="button" 
-              @click="eliminarBloque" 
-              class="btn btn-danger"
-              :disabled="guardando"
-            >
-              Eliminar
-            </button>
-            <button 
-              type="button" 
-              @click="guardarBloque" 
+              type="submit" 
               class="btn btn-primary"
-              :disabled="guardando"
+              :disabled="modal.guardando || !formularioValido"
             >
-              {{ guardando ? 'Guardando...' : (editandoBloque ? 'Actualizar' : 'Crear') }}
+              <i class="fas fa-spinner fa-spin" v-if="modal.guardando"></i>
+              <i class="fas fa-save" v-else></i>
+              {{ modal.guardando ? 'Guardando...' : (modal.esEdicion ? 'Actualizar' : 'Crear') }}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   </div>
@@ -217,735 +323,676 @@ export default {
   name: 'GestorHorarios',
   data() {
     return {
+      // Estado principal
+      loading: false,
+      error: '',
+      
+      // Datos
       doctores: [],
       tiposBloque: [],
       horarios: [],
-      doctorSeleccionado: '',
-      semanaSeleccionada: '',
-      loading: false,
-      showModal: false,
-      editandoBloque: false,
-      guardando: false,
-      errorModal: '',
       
-      bloqueForm: {
-        id: '',
+      // Filtros y navegación
+      filtros: {
+        doctorId: '',
+      },
+      semanaActual: new Date(),
+      
+      // Modal
+      modal: {
+        mostrar: false,
+        esEdicion: false,
+        guardando: false,
+        error: ''
+      },
+      
+      // Formulario
+      formulario: {
+        id: null,
         doctor_id: '',
         tipo_bloque_id: '',
         fecha: '',
-        dia_semana: '',
         hora_inicio: '',
         hora_fin: '',
         notas: ''
       },
       
-      diasSemana: [],
-      horasDisponibles: [],
-      
-      // Para drag and drop
-      draggedBloque: null,
-      resizingBloque: null,
-      resizeStartY: 0,
-      resizeStartHeight: 0
+      // Configuración del calendario
+      horaInicio: 7, // 7:00 AM
+      horaFin: 19,   // 7:00 PM
+      intervaloMinutos: 30,
+      alturaCelda: 40
     };
   },
+  
   computed: {
     authStore() {
       return useAuthStore();
     },
+    
     userRole() {
       return this.authStore.userRole;
     },
-    currentUserId() {
-      return this.authStore.user?.id;
-    }
-  },
-  mounted() {
-    this.inicializarComponente();
-  },
-  methods: {
-    async inicializarComponente() {
-      this.generarHorasDisponibles();
-      await this.cargarTiposBloque();
+    
+    // Información de la semana actual
+    inicioSemana() {
+      const fecha = new Date(this.semanaActual);
+      const dia = fecha.getDay();
+      const diff = fecha.getDate() - dia + (dia === 0 ? -6 : 1); // Lunes como primer día
+      return new Date(fecha.setDate(diff));
+    },
+    
+    formatoSemanaActual() {
+      const año = this.inicioSemana.getFullYear();
+      const semana = this.obtenerNumeroSemana(this.inicioSemana);
+      return `Semana ${semana}, ${año}`;
+    },
+    
+    rangoFechas() {
+      const inicio = this.inicioSemana;
+      const fin = new Date(inicio);
+      fin.setDate(fin.getDate() + 6);
       
-      // Si es doctor, cargar solo sus horarios
-      if (this.userRole === 'doctor') {
-        await this.cargarDoctorActual();
-      } else {
-        await this.cargarDoctores();
+      const formatoCorto = { day: 'numeric', month: 'short' };
+      return `${inicio.toLocaleDateString('es-ES', formatoCorto)} - ${fin.toLocaleDateString('es-ES', formatoCorto)}`;
+    },
+    
+    // Días de la semana
+    diasSemana() {
+      const dias = [];
+      const nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+      const hoy = new Date().toDateString();
+      
+      for (let i = 0; i < 7; i++) {
+        const fecha = new Date(this.inicioSemana);
+        fecha.setDate(fecha.getDate() + i);
+        
+        const bloquesDia = this.obtenerBloquesDelDia(i + 1);
+        
+        dias.push({
+          nombre: nombres[i],
+          nombreCorto: nombres[i].substring(0, 3),
+          fecha: fecha.toISOString().split('T')[0],
+          fechaFormateada: fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+          diaSemana: i + 1,
+          esHoy: fecha.toDateString() === hoy,
+          totalBloques: bloquesDia.length
+        });
       }
       
-      this.establecerSemanaActual();
+      return dias;
     },
-
-    async cargarDoctorActual() {
+    
+    // Franjas horarias
+    franjas() {
+      const franjas = [];
+      const totalMinutos = (this.horaFin - this.horaInicio) * 60;
+      const totalFranjas = totalMinutos / this.intervaloMinutos;
+      
+      for (let i = 0; i < totalFranjas; i++) {
+        const minutosTotales = this.horaInicio * 60 + (i * this.intervaloMinutos);
+        const horas = Math.floor(minutosTotales / 60);
+        const minutos = minutosTotales % 60;
+        
+        const hora = `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`;
+        const esInicioHora = minutos === 0;
+        
+        franjas.push({
+          hora,
+          horaFormateada: this.formatearHora(hora),
+          altura: this.alturaCelda,
+          esInicioHora
+        });
+      }
+      
+      return franjas;
+    },
+    
+    // Horas disponibles para el selector
+    horasDisponibles() {
+      return this.franjas.map(franja => ({
+        valor: franja.hora,
+        texto: franja.horaFormateada
+      }));
+    },
+    
+    // Horas de fin disponibles (después de la hora de inicio)
+    horasFinDisponibles() {
+      if (!this.formulario.hora_inicio) return [];
+      
+      const inicioMinutos = this.convertirHoraAMinutos(this.formulario.hora_inicio);
+      
+      return this.horasDisponibles.map(hora => ({
+        ...hora,
+        deshabilitada: this.convertirHoraAMinutos(hora.valor) <= inicioMinutos
+      }));
+    },
+    
+    // Duración calculada del bloque
+    duracionCalculada() {
+      if (!this.formulario.hora_inicio || !this.formulario.hora_fin) return '';
+      
+      const inicioMinutos = this.convertirHoraAMinutos(this.formulario.hora_inicio);
+      const finMinutos = this.convertirHoraAMinutos(this.formulario.hora_fin);
+      const duracion = finMinutos - inicioMinutos;
+      
+      if (duracion <= 0) return '';
+      
+      const horas = Math.floor(duracion / 60);
+      const minutos = duracion % 60;
+      
+      let texto = '';
+      if (horas > 0) texto += `${horas}h `;
+      if (minutos > 0) texto += `${minutos}m`;
+      
+      return texto.trim();
+    },
+    
+    // Color del tipo seleccionado
+    colorSeleccionado() {
+      if (!this.formulario.tipo_bloque_id) return '';
+      const tipo = this.tiposBloque.find(t => t.id == this.formulario.tipo_bloque_id);
+      return tipo?.color || '';
+    },
+    
+    // Nombre del tipo seleccionado
+    nombreTipoSeleccionado() {
+      if (!this.formulario.tipo_bloque_id) return '';
+      const tipo = this.tiposBloque.find(t => t.id == this.formulario.tipo_bloque_id);
+      return tipo?.nombre || '';
+    },
+    
+    // Fechas límite para el selector
+    fechaMinima() {
+      return this.diasSemana[0]?.fecha || '';
+    },
+    
+    fechaMaxima() {
+      return this.diasSemana[6]?.fecha || '';
+    },
+    
+    // Validación del formulario
+    formularioValido() {
+      return this.formulario.tipo_bloque_id && 
+             this.formulario.fecha && 
+             this.formulario.hora_inicio && 
+             this.formulario.hora_fin &&
+             this.convertirHoraAMinutos(this.formulario.hora_fin) > this.convertirHoraAMinutos(this.formulario.hora_inicio);
+    }
+  },
+  
+  async mounted() {
+    await this.inicializar();
+  },
+  
+  methods: {
+    // Inicialización
+    async inicializar() {
+      try {
+        this.loading = true;
+        this.error = '';
+        
+        await Promise.all([
+          this.cargarTiposBloque(),
+          this.userRole !== 'doctor' ? this.cargarDoctores() : this.configurarDoctorActual()
+        ]);
+        
+        if (this.filtros.doctorId) {
+          await this.cargarHorarios();
+        }
+      } catch (error) {
+        console.error('Error en inicialización:', error);
+        this.error = 'Error al cargar la información inicial';
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    // Carga de datos
+    async cargarDoctores() {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/doctores/listar.php', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      this.doctores = response.data;
+    },
+    
+    async configurarDoctorActual() {
       try {
         const token = localStorage.getItem('token');
         const response = await axios.get('/api/doctores/perfil.php', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        if (response.data && response.data.id) {
-          this.doctorSeleccionado = response.data.id;
-          await this.cargarHorarios();
+        if (response.data?.id) {
+          this.filtros.doctorId = response.data.id;
         }
       } catch (error) {
-        console.error('Error al cargar doctor actual:', error);
+        console.error('Error al obtener doctor actual:', error);
       }
     },
-
-    async cargarDoctores() {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get('/api/doctores/listar.php', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        this.doctores = response.data;
-      } catch (error) {
-        console.error('Error al cargar doctores:', error);
-      }
-    },
-
+    
     async cargarTiposBloque() {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get('/api/horarios/TiposBloque.php', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        this.tiposBloque = response.data.filter(tipo => tipo.activo);
-      } catch (error) {
-        console.error('Error al cargar tipos de bloque:', error);
-      }
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/horarios/TiposBloque.php', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      this.tiposBloque = response.data.filter(tipo => tipo.activo);
     },
-
+    
     async cargarHorarios() {
-      if (!this.doctorSeleccionado || !this.semanaSeleccionada) return;
+      if (!this.filtros.doctorId) return;
       
-      this.loading = true;
       try {
+        this.loading = true;
+        this.error = '';
+        
         const token = localStorage.getItem('token');
-        const fechaInicio = this.obtenerFechaInicioSemana();
+        const fechaInicio = this.inicioSemana.toISOString().split('T')[0];
         
-        console.log('Cargando horarios para:', {
-          doctor_id: this.doctorSeleccionado,
-          fecha_inicio: fechaInicio
+        const response = await axios.get('/api/horarios/gestionar.php', {
+          headers: { 'Authorization': `Bearer ${token}` },
+          params: {
+            doctor_id: this.filtros.doctorId,
+            fecha_inicio: fechaInicio
+          }
         });
-        
-        const response = await axios.get(`/api/horarios/gestionar.php?doctor_id=${this.doctorSeleccionado}&fecha_inicio=${fechaInicio}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        console.log('Horarios recibidos del servidor:', response.data);
         
         this.horarios = response.data.map(horario => ({
           ...horario,
-          color: this.obtenerColorTipo(horario.tipo_bloque_id),
-          tipo_nombre: this.obtenerNombreTipo(horario.tipo_bloque_id),
-          duracion_slots: this.calcularDuracionSlots(horario.hora_inicio, horario.hora_fin),
-          tooltip: `${this.obtenerNombreTipo(horario.tipo_bloque_id)}\n${horario.hora_inicio} - ${horario.hora_fin}`
+          tooltip: `${this.obtenerNombreTipo(horario.tipo_bloque_id)}\n${this.formatearHora(horario.hora_inicio)} - ${this.formatearHora(horario.hora_fin)}${horario.notas ? '\n' + horario.notas : ''}`
         }));
         
-        console.log('Horarios procesados:', this.horarios);
-        
-        this.generarDiasSemana();
       } catch (error) {
         console.error('Error al cargar horarios:', error);
+        this.error = 'Error al cargar los horarios';
       } finally {
         this.loading = false;
       }
     },
-
-    generarHorasDisponibles() {
-      const horas = [];
-      for (let h = 7; h <= 18; h++) {
-        for (let m = 0; m < 60; m += 30) {
-          const hora = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-          horas.push(hora);
-        }
+    
+    // Eventos
+    async onDoctorChange() {
+      if (this.filtros.doctorId) {
+        await this.cargarHorarios();
+      } else {
+        this.horarios = [];
       }
-      this.horasDisponibles = horas;
     },
-
-    establecerSemanaActual() {
-      const hoy = new Date();
-      const año = hoy.getFullYear();
-      const semana = this.obtenerNumeroSemana(hoy);
-      this.semanaSeleccionada = `${año}-W${semana.toString().padStart(2, '0')}`;
-      this.generarDiasSemana();
-    },
-
-    obtenerNumeroSemana(fecha) {
-      const startDate = new Date(fecha.getFullYear(), 0, 1);
-      const days = Math.floor((fecha - startDate) / (24 * 60 * 60 * 1000));
-      return Math.ceil(days / 7);
-    },
-
-    generarDiasSemana() {
-      if (!this.semanaSeleccionada) return;
+    
+    navegarSemana(direccion) {
+      const nuevaFecha = new Date(this.semanaActual);
+      nuevaFecha.setDate(nuevaFecha.getDate() + (direccion * 7));
+      this.semanaActual = nuevaFecha;
       
-      const fechaInicio = this.obtenerFechaInicioSemana();
-      console.log('Generando días para semana:', this.semanaSeleccionada);
-      console.log('Fecha inicio calculada:', fechaInicio);
-      
-      this.diasSemana = [];
-      const nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-      
-      for (let i = 0; i < 7; i++) {
-        const fecha = new Date(fechaInicio + 'T00:00:00'); // Agregar hora para evitar problemas de zona horaria
-        fecha.setDate(fecha.getDate() + i);
-        const fechaStr = fecha.toISOString().split('T')[0];
-        
-        this.diasSemana.push({
-          nombre: nombres[i],
-          fecha: fechaStr,
-          diaSemana: i + 1
-        });
+      if (this.filtros.doctorId) {
+        this.cargarHorarios();
       }
-      
-      console.log('Días generados:', this.diasSemana);
     },
-
-    obtenerFechaInicioSemana() {
-      if (!this.semanaSeleccionada) return '';
-      
-      const [año, semana] = this.semanaSeleccionada.split('-W');
-      
-      // Crear fecha del 4 de enero (siempre está en la semana 1)
-      const cuatroEnero = new Date(año, 0, 4);
-      
-      // Encontrar el lunes de esa semana
-      const diaCuatroEnero = cuatroEnero.getDay();
-      const diasHastaLunes = diaCuatroEnero === 0 ? 6 : diaCuatroEnero - 1;
-      const primerLunes = new Date(cuatroEnero);
-      primerLunes.setDate(4 - diasHastaLunes);
-      
-      // Calcular el lunes de la semana solicitada
-      const fechaObjetivo = new Date(primerLunes);
-      fechaObjetivo.setDate(primerLunes.getDate() + (parseInt(semana) - 1) * 7);
-      
-      const resultado = fechaObjetivo.toISOString().split('T')[0];
-      
-      console.log('Cálculo de semana:', {
-        semanaSeleccionada: this.semanaSeleccionada,
-        año: año,
-        semana: semana,
-        cuatroEnero: cuatroEnero.toISOString().split('T')[0],
-        primerLunes: primerLunes.toISOString().split('T')[0],
-        fechaCalculada: resultado
-      });
-      
-      return resultado;
-    },
-
-    irSemanaAnterior() {
-      const [año, semana] = this.semanaSeleccionada.split('-W');
-      let nuevaSemana = parseInt(semana) - 1;
-      let nuevoAño = parseInt(año);
-      
-      if (nuevaSemana < 1) {
-        nuevaSemana = 52;
-        nuevoAño--;
-      }
-      
-      this.semanaSeleccionada = `${nuevoAño}-W${nuevaSemana.toString().padStart(2, '0')}`;
-      this.cargarHorarios();
-    },
-
-    irSemanaSiguiente() {
-      const [año, semana] = this.semanaSeleccionada.split('-W');
-      let nuevaSemana = parseInt(semana) + 1;
-      let nuevoAño = parseInt(año);
-      
-      if (nuevaSemana > 52) {
-        nuevaSemana = 1;
-        nuevoAño++;
-      }
-      
-      this.semanaSeleccionada = `${nuevoAño}-W${nuevaSemana.toString().padStart(2, '0')}`;
-      this.cargarHorarios();
-    },
-
+    
     irSemanaActual() {
-      this.establecerSemanaActual();
-      this.cargarHorarios();
-    },
-
-    obtenerBloquesEnCelda(fecha, hora) {
-      const bloques = this.horarios.filter(horario => {
-        // Calcular la fecha real del bloque basada en fecha_inicio y dia_semana
-        const fechaInicioSemana = new Date(horario.fecha_inicio + 'T00:00:00');
-        
-        // dia_semana: 1=Lunes, 2=Martes, ..., 7=Domingo
-        // Ajustar para obtener la fecha correcta
-        const diasAgregar = horario.dia_semana - 1;
-        const fechaRealBloque = new Date(fechaInicioSemana);
-        fechaRealBloque.setDate(fechaRealBloque.getDate() + diasAgregar);
-        
-        const fechaBloqueStr = fechaRealBloque.toISOString().split('T')[0];
-        
-        // Verificar que coincida la fecha calculada
-        if (fechaBloqueStr !== fecha) return false;
-        
-        // Verificar que coincida la hora de inicio
-        // Normalizar el formato de hora (quitar segundos si los tiene)
-        const horaInicioBloque = horario.hora_inicio.substring(0, 5); // "07:00:00" -> "07:00"
-        const horaBuscada = hora.substring(0, 5); // Por si acaso tiene segundos
-        
-        return horaInicioBloque === horaBuscada;
-      });
-      
-      // Solo mostrar logs si hay bloques o si estamos buscando en una celda específica
-      if (bloques.length > 0 || (fecha.includes('2025-06-17') && hora === '07:00')) {
-        console.log('Buscando bloques en celda:', {
-          fecha_buscada: fecha,
-          hora_buscada: hora,
-          horarios_disponibles: this.horarios.length,
-          bloques_encontrados: bloques.length,
-          detalles_horarios: this.horarios.map(h => ({
-            id: h.id,
-            fecha_inicio: h.fecha_inicio,
-            dia_semana: h.dia_semana,
-            hora_inicio: h.hora_inicio,
-            fecha_calculada: (() => {
-              const fi = new Date(h.fecha_inicio + 'T00:00:00');
-              const fr = new Date(fi);
-              fr.setDate(fr.getDate() + (h.dia_semana - 1));
-              return fr.toISOString().split('T')[0];
-            })()
-          }))
-        });
-      }
-      
-      return bloques;
-    },
-
-    calcularDuracionSlots(horaInicio, horaFin) {
-      const [hI, mI] = horaInicio.split(':').map(Number);
-      const [hF, mF] = horaFin.split(':').map(Number);
-      
-      const minutosInicio = hI * 60 + mI;
-      const minutosFin = hF * 60 + mF;
-      
-      return (minutosFin - minutosInicio) / 30;
-    },
-
-    obtenerColorTipo(tipoId) {
-      const tipo = this.tiposBloque.find(t => t.id == tipoId);
-      return tipo ? tipo.color : '#6c757d';
-    },
-
-    obtenerNombreTipo(tipoId) {
-      const tipo = this.tiposBloque.find(t => t.id == tipoId);
-      return tipo ? tipo.nombre : 'Desconocido';
-    },
-
-    formatearFechaCompleta(fecha) {
-      const date = new Date(fecha);
-      const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-      const nombreDia = diasSemana[date.getDay()];
-      const fechaFormateada = date.toLocaleDateString('es-ES', { 
-        day: '2-digit', 
-        month: '2-digit' 
-      });
-      return `${nombreDia}, ${fechaFormateada}`;
-    },
-
-    obtenerNombreDia(fecha) {
-      if (!fecha) return '';
-      const date = new Date(fecha);
-      const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-      return diasSemana[date.getDay()];
-    },
-
-    actualizarDiaSemana() {
-      if (this.bloqueForm.fecha) {
-        const fecha = new Date(this.bloqueForm.fecha);
-        const dia = fecha.getDay();
-        this.bloqueForm.dia_semana = dia === 0 ? 7 : dia; // Convertir domingo (0) a 7
+      this.semanaActual = new Date();
+      if (this.filtros.doctorId) {
+        this.cargarHorarios();
       }
     },
-
-    iniciarNuevoBloque(fecha, hora) {
-      const dia = new Date(fecha).getDay();
-      const diaSemana = dia === 0 ? 7 : dia; // Convertir domingo (0) a 7
+    
+    recargar() {
+      this.inicializar();
+    },
+    
+    // Gestión de bloques
+    obtenerBloquesDelDia(diaSemana) {
+      return this.horarios.filter(horario => horario.dia_semana === diaSemana);
+    },
+    
+    calcularEstiloBloque(bloque) {
+      const inicioMinutos = this.convertirHoraAMinutos(bloque.hora_inicio);
+      const finMinutos = this.convertirHoraAMinutos(bloque.hora_fin);
+      const duracionMinutos = finMinutos - inicioMinutos;
       
-      this.bloqueForm = {
-        id: '',
-        doctor_id: this.doctorSeleccionado,
+      // Calcular posición desde el inicio del calendario
+      const inicioCalendarioMinutos = this.horaInicio * 60;
+      const posicionMinutos = inicioMinutos - inicioCalendarioMinutos;
+      
+      const top = (posicionMinutos / this.intervaloMinutos) * this.alturaCelda;
+      const height = (duracionMinutos / this.intervaloMinutos) * this.alturaCelda;
+      
+      const color = this.obtenerColorTipo(bloque.tipo_bloque_id);
+      
+      return {
+        top: `${top}px`,
+        height: `${height}px`,
+        backgroundColor: color,
+        borderColor: this.ajustarColor(color, -20)
+      };
+    },
+    
+    crearNuevoBloque(fecha, hora) {
+      // Verificar si ya existe un bloque en esta posición
+      const diaSemana = this.diasSemana.find(d => d.fecha === fecha)?.diaSemana;
+      if (!diaSemana) return;
+      
+      const bloquesExistentes = this.obtenerBloquesDelDia(diaSemana);
+      const horaInicioMinutos = this.convertirHoraAMinutos(hora);
+      
+      // Buscar si hay solapamiento
+      const hayConflicto = bloquesExistentes.some(bloque => {
+        const bloqueInicio = this.convertirHoraAMinutos(bloque.hora_inicio);
+        const bloqueFin = this.convertirHoraAMinutos(bloque.hora_fin);
+        return horaInicioMinutos >= bloqueInicio && horaInicioMinutos < bloqueFin;
+      });
+      
+      if (hayConflicto) {
+        alert('Ya existe un bloque horario en esta franja');
+        return;
+      }
+      
+      // Calcular hora de fin sugerida (1 hora por defecto)
+      const horaFinSugerida = this.sumarMinutos(hora, 60);
+      
+      this.formulario = {
+        id: null,
+        doctor_id: this.filtros.doctorId,
         tipo_bloque_id: '',
         fecha: fecha,
-        dia_semana: diaSemana,
         hora_inicio: hora,
-        hora_fin: this.sumarMinutos(hora, 30),
+        hora_fin: horaFinSugerida,
         notas: ''
       };
       
-      this.editandoBloque = false;
-      this.errorModal = '';
-      this.showModal = true;
+      this.modal = {
+        mostrar: true,
+        esEdicion: false,
+        guardando: false,
+        error: ''
+      };
     },
-
+    
     editarBloque(bloque) {
       // Calcular la fecha real del bloque
-      const fechaInicioSemana = new Date(bloque.fecha_inicio);
-      const diasAgregar = bloque.dia_semana - 1;
-      fechaInicioSemana.setDate(fechaInicioSemana.getDate() + diasAgregar);
-      const fechaReal = fechaInicioSemana.toISOString().split('T')[0];
+      const fechaReal = this.calcularFechaRealBloque(bloque);
       
-      this.bloqueForm = {
+      this.formulario = {
         id: bloque.id,
         doctor_id: bloque.doctor_id,
         tipo_bloque_id: bloque.tipo_bloque_id,
         fecha: fechaReal,
-        dia_semana: bloque.dia_semana,
         hora_inicio: bloque.hora_inicio,
         hora_fin: bloque.hora_fin,
         notas: bloque.notas || ''
       };
       
-      this.editandoBloque = true;
-      this.errorModal = '';
-      this.showModal = true;
-    },
-
-    sumarMinutos(hora, minutos) {
-      const [h, m] = hora.split(':').map(Number);
-      const totalMinutos = h * 60 + m + minutos;
-      const nuevaHora = Math.floor(totalMinutos / 60);
-      const nuevosMinutos = totalMinutos % 60;
-      
-      return `${nuevaHora.toString().padStart(2, '0')}:${nuevosMinutos.toString().padStart(2, '0')}`;
-    },
-
-    cerrarModal() {
-      this.showModal = false;
-      this.editandoBloque = false;
-      this.bloqueForm = {
-        id: '',
-        doctor_id: '',
-        tipo_bloque_id: '',
-        fecha: '',
-        dia_semana: '',
-        hora_inicio: '',
-        hora_fin: '',
-        notas: ''
+      this.modal = {
+        mostrar: true,
+        esEdicion: true,
+        guardando: false,
+        error: ''
       };
-      this.errorModal = '';
     },
-
-    async guardarBloque() {
-      // Validaciones
-      if (!this.bloqueForm.tipo_bloque_id) {
-        this.errorModal = 'Debe seleccionar un tipo de bloque';
-        return;
-      }
-      
-      if (!this.bloqueForm.fecha) {
-        this.errorModal = 'Debe seleccionar una fecha';
-        return;
-      }
-      
-      if (!this.bloqueForm.hora_inicio || !this.bloqueForm.hora_fin) {
-        this.errorModal = 'Debe especificar hora de inicio y fin';
-        return;
-      }
-      
-      if (this.bloqueForm.hora_inicio >= this.bloqueForm.hora_fin) {
-        this.errorModal = 'La hora de inicio debe ser menor que la hora de fin';
-        return;
-      }
-
-      // Asegurar que dia_semana esté actualizado
-      this.actualizarDiaSemana();
-
-      // Asegurar que doctor_id esté establecido
-      if (!this.bloqueForm.doctor_id) {
-        this.bloqueForm.doctor_id = this.doctorSeleccionado;
-      }
-
-      // Preparar datos completos
-      const datosCompletos = {
-        doctor_id: parseInt(this.bloqueForm.doctor_id),
-        tipo_bloque_id: parseInt(this.bloqueForm.tipo_bloque_id),
-        fecha: this.bloqueForm.fecha,
-        dia_semana: parseInt(this.bloqueForm.dia_semana),
-        hora_inicio: this.bloqueForm.hora_inicio,
-        hora_fin: this.bloqueForm.hora_fin,
-        notas: this.bloqueForm.notas || ''
-      };
-
-      // Si es edición, agregar el ID
-      if (this.editandoBloque) {
-        datosCompletos.id = parseInt(this.bloqueForm.id);
-      }
-
-      console.log('Datos completos a enviar:', datosCompletos);
-
-      this.guardando = true;
-      try {
-        const token = localStorage.getItem('token');
-        const url = '/api/horarios/gestionar.php';
-        const method = this.editandoBloque ? 'put' : 'post';
-        
-        const response = await axios[method](url, datosCompletos, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        console.log('Respuesta del servidor:', response.data);
-
-        if (response.data && response.data.success) {
-          await this.cargarHorarios();
-          this.cerrarModal();
-        } else {
-          this.errorModal = response.data?.error || 'Error al guardar el bloque';
-        }
-      } catch (error) {
-        console.error('Error completo:', error);
-        console.error('Response data:', error.response?.data);
-        console.error('Response status:', error.response?.status);
-        
-        if (error.response?.status === 500) {
-          this.errorModal = 'Error interno del servidor. Revise los logs del servidor.';
-        } else if (error.response?.data?.error) {
-          this.errorModal = error.response.data.error;
-        } else {
-          this.errorModal = 'Error al guardar el bloque horario';
-        }
-      } finally {
-        this.guardando = false;
-      }
-    },
-
-    async eliminarBloque() {
+    
+    async eliminarBloque(bloque) {
       if (!confirm('¿Está seguro de que desea eliminar este bloque horario?')) {
         return;
       }
-
-      this.guardando = true;
+      
       try {
         const token = localStorage.getItem('token');
         await axios.delete('/api/horarios/gestionar.php', {
           headers: { 'Authorization': `Bearer ${token}` },
-          data: { id: this.bloqueForm.id }
+          data: { id: bloque.id }
         });
-
+        
         await this.cargarHorarios();
-        this.cerrarModal();
       } catch (error) {
         console.error('Error al eliminar bloque:', error);
-        this.errorModal = error.response?.data?.error || 'Error al eliminar el bloque horario';
-      } finally {
-        this.guardando = false;
+        alert('Error al eliminar el bloque horario');
       }
     },
-
-    // Drag and Drop
-    onDragStart(event, bloque) {
-      this.draggedBloque = bloque;
-      event.dataTransfer.effectAllowed = 'move';
-    },
-
-    onDrop(event, nuevaFecha) {
-      if (!this.draggedBloque) return;
-      
-      const rect = event.target.getBoundingClientRect();
-      const y = event.clientY - rect.top;
-      const slotHeight = 30;
-      const slotIndex = Math.floor(y / slotHeight);
-      
-      if (slotIndex >= 0 && slotIndex < this.horasDisponibles.length) {
-        const nuevaHora = this.horasDisponibles[slotIndex];
-        this.moverBloque(this.draggedBloque, nuevaFecha, nuevaHora);
-      }
-      
-      this.draggedBloque = null;
-    },
-
-    async moverBloque(bloque, nuevaFecha, nuevaHora) {
-      const duracionMinutos = this.calcularDuracionMinutos(bloque.hora_inicio, bloque.hora_fin);
-      const nuevaHoraFin = this.sumarMinutos(nuevaHora, duracionMinutos);
-      
-      const datosActualizados = {
-        id: bloque.id,
-        fecha: nuevaFecha,
-        dia_semana: new Date(nuevaFecha).getDay() || 7,
-        hora_inicio: nuevaHora,
-        hora_fin: nuevaHoraFin
+    
+    // Modal
+    cerrarModal() {
+      this.modal.mostrar = false;
+      this.formulario = {
+        id: null,
+        doctor_id: this.filtros.doctorId,
+        tipo_bloque_id: '',
+        fecha: '',
+        hora_inicio: '',
+        hora_fin: '',
+        notas: ''
       };
-
+    },
+    
+    async guardarBloque() {
+      if (!this.formularioValido) return;
+      
       try {
+        this.modal.guardando = true;
+        this.modal.error = '';
+        
+        // Calcular día de la semana
+        const fecha = new Date(this.formulario.fecha);
+        const diaSemana = fecha.getDay() === 0 ? 7 : fecha.getDay(); // Domingo = 7
+        
+        const datos = {
+          doctor_id: parseInt(this.formulario.doctor_id),
+          tipo_bloque_id: parseInt(this.formulario.tipo_bloque_id),
+          fecha: this.formulario.fecha,
+          dia_semana: diaSemana,
+          hora_inicio: this.formulario.hora_inicio,
+          hora_fin: this.formulario.hora_fin,
+          notas: this.formulario.notas || ''
+        };
+        
+        if (this.modal.esEdicion) {
+          datos.id = this.formulario.id;
+        }
+        
         const token = localStorage.getItem('token');
-        await axios.put('/api/horarios/gestionar.php', datosActualizados, {
+        const metodo = this.modal.esEdicion ? 'put' : 'post';
+        
+        const response = await axios[metodo]('/api/horarios/gestionar.php', datos, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        await this.cargarHorarios();
-      } catch (error) {
-        console.error('Error al mover bloque:', error);
-        alert('Error al mover el bloque horario');
-      }
-    },
-
-    calcularDuracionMinutos(horaInicio, horaFin) {
-      const [hI, mI] = horaInicio.split(':').map(Number);
-      const [hF, mF] = horaFin.split(':').map(Number);
-      
-      const minutosInicio = hI * 60 + mI;
-      const minutosFin = hF * 60 + mF;
-      
-      return minutosFin - minutosInicio;
-    },
-
-    // Resize functionality
-    iniciarResize(event, bloque) {
-      event.stopPropagation();
-      this.resizingBloque = bloque;
-      this.resizeStartY = event.clientY;
-      this.resizeStartHeight = this.calcularDuracionSlots(bloque.hora_inicio, bloque.hora_fin) * 30;
-      
-      document.addEventListener('mousemove', this.onResize);
-      document.addEventListener('mouseup', this.finalizarResize);
-    },
-
-    onResize(event) {
-      if (!this.resizingBloque) return;
-      
-      const deltaY = event.clientY - this.resizeStartY;
-      const nuevaAltura = this.resizeStartHeight + deltaY;
-      const nuevosSlots = Math.max(1, Math.round(nuevaAltura / 30));
-      
-      const elemento = event.target.closest('.bloque-horario');
-      if (elemento) {
-        elemento.style.height = `${nuevosSlots * 30}px`;
-      }
-    },
-
-    async finalizarResize() {
-      if (!this.resizingBloque) return;
-      
-      const nuevaAltura = parseInt(document.querySelector('.bloque-horario').style.height);
-      const nuevosSlots = Math.round(nuevaAltura / 30);
-      const nuevosMinutos = nuevosSlots * 30;
-      const nuevaHoraFin = this.sumarMinutos(this.resizingBloque.hora_inicio, nuevosMinutos);
-      
-      try {
-        const token = localStorage.getItem('token');
-        await axios.put('/api/horarios/gestionar.php', {
-          id: this.resizingBloque.id,
-          hora_fin: nuevaHoraFin
-        }, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        if (response.data?.success) {
+          await this.cargarHorarios();
+          this.cerrarModal();
+        } else {
+          this.modal.error = response.data?.error || 'Error al guardar el bloque';
+        }
         
-        await this.cargarHorarios();
       } catch (error) {
-        console.error('Error al redimensionar bloque:', error);
-        await this.cargarHorarios();
+        console.error('Error al guardar bloque:', error);
+        this.modal.error = error.response?.data?.error || 'Error al guardar el bloque horario';
+      } finally {
+        this.modal.guardando = false;
       }
+    },
+    
+    // Utilidades
+    obtenerNumeroSemana(fecha) {
+      const inicioAño = new Date(fecha.getFullYear(), 0, 1);
+      const dias = Math.floor((fecha - inicioAño) / (24 * 60 * 60 * 1000));
+      return Math.ceil((dias + inicioAño.getDay() + 1) / 7);
+    },
+    
+    calcularFechaRealBloque(bloque) {
+      const fechaInicio = new Date(bloque.fecha_inicio);
+      const diasAgregar = bloque.dia_semana - 1;
+      const fechaReal = new Date(fechaInicio);
+      fechaReal.setDate(fechaReal.getDate() + diasAgregar);
+      return fechaReal.toISOString().split('T')[0];
+    },
+    
+    convertirHoraAMinutos(hora) {
+      const [horas, minutos] = hora.split(':').map(Number);
+      return horas * 60 + minutos;
+    },
+    
+    sumarMinutos(hora, minutosAgregar) {
+      const minutosActuales = this.convertirHoraAMinutos(hora);
+      const nuevosMinutos = minutosActuales + minutosAgregar;
+      const horas = Math.floor(nuevosMinutos / 60);
+      const minutos = nuevosMinutos % 60;
+      return `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`;
+    },
+    
+    formatearHora(hora) {
+      const [h, m] = hora.split(':');
+      const horas = parseInt(h);
+      const minutos = parseInt(m);
       
-      document.removeEventListener('mousemove', this.onResize);
-      document.removeEventListener('mouseup', this.finalizarResize);
-      this.resizingBloque = null;
+      if (minutos === 0) {
+        return `${horas}:00`;
+      }
+      return `${horas}:${minutos.toString().padStart(2, '0')}`;
+    },
+    
+    obtenerNombreDia(fecha) {
+      if (!fecha) return '';
+      const date = new Date(fecha);
+      const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      return dias[date.getDay()];
+    },
+    
+    obtenerColorTipo(tipoId) {
+      const tipo = this.tiposBloque.find(t => t.id == tipoId);
+      return tipo?.color || '#6c757d';
+    },
+    
+    obtenerNombreTipo(tipoId) {
+      const tipo = this.tiposBloque.find(t => t.id == tipoId);
+      return tipo?.nombre || 'Desconocido';
+    },
+    
+    ajustarColor(color, porcentaje) {
+      const hex = color.replace('#', '');
+      const num = parseInt(hex, 16);
+      const amt = Math.round(2.55 * porcentaje);
+      const R = (num >> 16) + amt;
+      const G = (num >> 8 & 0x00FF) + amt;
+      const B = (num & 0x0000FF) + amt;
+      return `#${(0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+        (B < 255 ? B < 1 ? 0 : B : 255))
+        .toString(16).slice(1)}`;
     }
   }
 };
 </script>
 
 <style scoped>
-.gestor-horarios-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
+/* Variables CSS */
+:root {
+  --primary-color: #007bff;
+  --success-color: #28a745;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #17a2b8;
+  --light-color: #f8f9fa;
+  --dark-color: #343a40;
+  --secondary-color: #6c757d;
+  --border-color: #dee2e6;
+  --hover-color: #e9ecef;
 }
 
+/* Layout principal */
+.gestor-horarios-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Header */
 .header-section {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 20px;
   flex-wrap: wrap;
-  gap: 15px;
+}
+
+.header-section h1 {
+  margin: 0;
+  color: var(--dark-color);
+  font-size: 28px;
+  font-weight: 600;
 }
 
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 20px;
   flex-wrap: wrap;
 }
 
-.doctor-selector, .week-selector {
+.control-grupo {
   display: flex;
   flex-direction: column;
-  min-width: 200px;
+  min-width: 220px;
 }
 
-.doctor-selector label, .week-selector label {
-  margin-bottom: 5px;
+.control-grupo label {
+  margin-bottom: 6px;
   font-weight: 500;
-  font-size: 14px;
-}
-
-.form-control {
-  padding: 8px 12px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.form-text {
-  color: #6c757d;
-  font-size: 12px;
-  margin-top: 5px;
-}
-
-.btn {
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.btn-outline {
-  background-color: transparent;
-  border: 1px solid #ced4da;
   color: var(--dark-color);
+  font-size: 14px;
 }
 
-.btn-outline:hover {
-  background-color: #e9ecef;
+/* Navegación de semana */
+.semana-navegacion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.btn-primary {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-.btn-danger {
-  background-color: var(--danger-color);
-  color: white;
-}
-
-.loading-container {
+.semana-info {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 50px 0;
+  min-width: 160px;
+}
+
+.semana-titulo {
+  font-weight: 600;
+  color: var(--dark-color);
+  font-size: 14px;
+}
+
+.fecha-rango {
+  font-size: 12px;
+  color: var(--secondary-color);
+  margin-top: 2px;
+}
+
+/* Estados */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid var(--primary-color);
+  border: 3px solid var(--border-color);
+  border-top: 3px solid var(--primary-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 15px;
+  margin-bottom: 16px;
 }
 
 @keyframes spin {
@@ -955,143 +1002,329 @@ export default {
 
 .empty-state {
   text-align: center;
-  padding: 50px 0;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 60px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .empty-state i {
   font-size: 48px;
   color: var(--secondary-color);
-  margin-bottom: 15px;
+  margin-bottom: 16px;
 }
 
-.horarios-grid {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.empty-state h3 {
+  margin: 0 0 8px 0;
+  color: var(--dark-color);
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--secondary-color);
+}
+
+/* Calendario */
+.calendario-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
-.grid-header {
-  display: grid;
-  grid-template-columns: 80px repeat(7, 1fr);
-  background-color: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-}
-
-.time-column-header {
-  padding: 15px 10px;
-  font-weight: 600;
-  text-align: center;
-  border-right: 1px solid #dee2e6;
-}
-
-.day-header {
-  padding: 15px 10px;
-  text-align: center;
-  border-right: 1px solid #dee2e6;
-}
-
-.day-name {
-  font-weight: 600;
-  color: var(--dark-color);
-  margin-bottom: 5px;
-}
-
-.day-date {
-  font-size: 12px;
-  color: var(--secondary-color);
-}
-
-.grid-body {
-  display: grid;
-  grid-template-columns: 80px repeat(7, 1fr);
-  min-height: 600px;
-}
-
-.time-slots {
-  border-right: 1px solid #dee2e6;
-  background-color: #f8f9fa;
-}
-
-.time-slot {
-  height: 30px;
-  padding: 5px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 12px;
+.calendario-grid {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+}
+
+.calendario-header {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  background: var(--light-color);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.hora-header {
+  padding: 16px 8px;
+  font-weight: 600;
+  text-align: center;
   color: var(--secondary-color);
+  font-size: 12px;
+  border-right: 1px solid var(--border-color);
 }
 
-.day-column {
-  border-right: 1px solid #dee2e6;
-  position: relative;
-}
-
-.time-cell {
-  height: 30px;
-  border-bottom: 1px solid #e9ecef;
-  position: relative;
-  cursor: pointer;
+.dia-header {
+  padding: 16px 12px;
+  text-align: center;
+  border-right: 1px solid var(--border-color);
   transition: background-color 0.2s;
 }
 
-.time-cell:hover {
-  background-color: #f8f9fa;
+.dia-header.dia-hoy {
+  background-color: rgba(0, 123, 255, 0.1);
+  border-color: var(--primary-color);
 }
 
+.dia-nombre {
+  font-weight: 600;
+  color: var(--dark-color);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.dia-fecha {
+  font-size: 12px;
+  color: var(--secondary-color);
+  margin-bottom: 4px;
+}
+
+.dia-estadisticas {
+  font-size: 11px;
+  color: var(--info-color);
+  font-weight: 500;
+}
+
+/* Cuerpo del calendario */
+.calendario-cuerpo {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  min-height: 500px;
+  position: relative;
+}
+
+.horas-columna {
+  background: var(--light-color);
+  border-right: 2px solid var(--border-color);
+}
+
+.franja-hora {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--secondary-color);
+  font-weight: 500;
+  border-bottom: 1px solid rgba(222, 226, 230, 0.5);
+}
+
+.dia-columna {
+  position: relative;
+  border-right: 1px solid var(--border-color);
+}
+
+.dia-columna.dia-hoy {
+  background-color: rgba(0, 123, 255, 0.02);
+}
+
+.franjas-contenedor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
+.franja-celda {
+  border-bottom: 1px solid rgba(222, 226, 230, 0.5);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.franja-celda:hover {
+  background-color: rgba(0, 123, 255, 0.05);
+}
+
+.linea-hora {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--border-color);
+}
+
+.bloques-contenedor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  padding: 0 4px;
+}
+
+/* Bloques de horario */
 .bloque-horario {
   position: absolute;
-  left: 2px;
-  right: 2px;
-  border-radius: 4px;
+  left: 4px;
+  right: 4px;
+  border-radius: 6px;
+  border: 1px solid;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  transition: transform 0.2s;
-  user-select: none;
+  transition: all 0.2s;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .bloque-horario:hover {
-  transform: scale(1.02);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  z-index: 20;
 }
 
-.bloque-content {
-  padding: 4px 8px;
+.bloque-contenido {
+  padding: 6px 8px;
   color: white;
   font-size: 12px;
-  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .bloque-tipo {
   font-weight: 600;
   margin-bottom: 2px;
+  line-height: 1.2;
 }
 
 .bloque-tiempo {
   font-size: 10px;
   opacity: 0.9;
+  margin-bottom: 2px;
 }
 
-.bloque-resize-handle {
+.bloque-notas {
+  font-size: 9px;
+  opacity: 0.8;
+  line-height: 1.1;
+}
+
+.bloque-acciones {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background-color: rgba(255, 255, 255, 0.3);
-  cursor: ns-resize;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
-.bloque-resize-handle:hover {
-  background-color: rgba(255, 255, 255, 0.6);
+.bloque-horario:hover .bloque-acciones {
+  opacity: 1;
 }
 
-/* Modal styles */
+.btn-icono {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  transition: background-color 0.2s;
+}
+
+.btn-icono:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-icono.btn-peligro:hover {
+  background: rgba(220, 53, 69, 0.8);
+}
+
+/* Controles de formulario */
+.form-control {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: white;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-control:disabled {
+  background-color: var(--light-color);
+  color: var(--secondary-color);
+}
+
+/* Botones */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--dark-color);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: var(--hover-color);
+  border-color: var(--secondary-color);
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Alertas */
+.alert {
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1103,91 +1336,148 @@ export default {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 20px;
 }
 
 .modal-container {
-  background-color: white;
-  border-radius: 8px;
-  width: 90%;
+  background: white;
+  border-radius: 12px;
+  width: 100%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e9ecef;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h2 {
   margin: 0;
   font-size: 18px;
+  font-weight: 600;
+  color: var(--dark-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.close-btn {
-  background: none;
+.btn-cerrar {
+  width: 32px;
+  height: 32px;
   border: none;
-  font-size: 24px;
+  background: none;
+  font-size: 20px;
   cursor: pointer;
   color: var(--secondary-color);
+  border-radius: 50%;
+  transition: background-color 0.2s;
 }
 
-.modal-body {
-  padding: 20px;
+.btn-cerrar:hover {
+  background-color: var(--hover-color);
+}
+
+.modal-cuerpo {
+  padding: 24px;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 .modal-footer {
-  padding: 15px 20px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  border-top: 1px solid #e9ecef;
+  gap: 12px;
 }
 
-.form-group {
-  margin-bottom: 15px;
+/* Formulario */
+.form-grupo {
+  margin-bottom: 20px;
 }
 
-.form-group label {
+.form-etiqueta {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   font-weight: 500;
-}
-
-.form-row {
+  color: var(--dark-color);
+  font-size: 14px;
   display: flex;
-  gap: 15px;
-  margin-bottom: 15px;
+  align-items: center;
+  gap: 6px;
 }
 
-.form-row .form-group {
-  flex: 1;
-  margin-bottom: 0;
+.form-fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
-.alert {
-  padding: 12px 15px;
+.form-ayuda {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--secondary-color);
+}
+
+.vista-previa-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--light-color);
+  border-radius: 6px;
+}
+
+.muestra-color {
+  width: 20px;
+  height: 20px;
   border-radius: 4px;
-  margin-bottom: 15px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.alert-danger {
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.duracion-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(0, 123, 255, 0.1);
+  border-radius: 6px;
+  margin-bottom: 20px;
+  color: var(--primary-color);
+  font-weight: 500;
+  font-size: 14px;
 }
 
 /* Responsive */
+@media (max-width: 1200px) {
+  .calendario-header,
+  .calendario-cuerpo {
+    grid-template-columns: 60px repeat(7, 1fr);
+  }
+  
+  .hora-header {
+    padding: 12px 4px;
+  }
+  
+  .dia-header {
+    padding: 12px 6px;
+  }
+}
+
 @media (max-width: 768px) {
+  .gestor-horarios-container {
+    padding: 16px;
+  }
+  
   .header-section {
     flex-direction: column;
     align-items: stretch;
@@ -1195,15 +1485,66 @@ export default {
   
   .header-controls {
     justify-content: center;
+    flex-wrap: wrap;
   }
   
-  .grid-header, .grid-body {
-    grid-template-columns: 60px repeat(7, 1fr);
+  .control-grupo {
+    min-width: 180px;
   }
   
-  .form-row {
-    flex-direction: column;
-    gap: 0;
+  .semana-navegacion {
+    justify-content: center;
+  }
+  
+  .form-fila {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .modal-container {
+    margin: 10px;
+    max-width: none;
+  }
+  
+  .calendario-header,
+  .calendario-cuerpo {
+    grid-template-columns: 50px repeat(7, minmax(0, 1fr));
+  }
+  
+  .dia-nombre {
+    font-size: 12px;
+  }
+  
+  .dia-fecha {
+    font-size: 10px;
+  }
+  
+  .bloque-contenido {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+  
+  .bloque-tipo {
+    font-size: 10px;
+  }
+  
+  .bloque-tiempo {
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendario-header,
+  .calendario-cuerpo {
+    grid-template-columns: 40px repeat(7, minmax(0, 1fr));
+  }
+  
+  .dia-estadisticas {
+    display: none;
+  }
+  
+  .bloque-acciones {
+    display: none;
   }
 }
 </style>
