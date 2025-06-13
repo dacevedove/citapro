@@ -590,6 +590,12 @@ export default {
         const token = localStorage.getItem('token');
         const fechaInicio = this.inicioSemana.toISOString().split('T')[0];
         
+        console.log('Cargando horarios:', {
+          doctor_id: this.filtros.doctorId,
+          fecha_inicio: fechaInicio,
+          semana_actual: this.semanaActual
+        });
+        
         const response = await axios.get('/api/horarios/gestionar.php', {
           headers: { 'Authorization': `Bearer ${token}` },
           params: {
@@ -598,10 +604,22 @@ export default {
           }
         });
         
-        this.horarios = response.data.map(horario => ({
-          ...horario,
-          tooltip: `${this.obtenerNombreTipo(horario.tipo_bloque_id)}\n${this.formatearHora(horario.hora_inicio)} - ${this.formatearHora(horario.hora_fin)}${horario.notas ? '\n' + horario.notas : ''}`
-        }));
+        console.log('Respuesta del servidor:', response.data);
+        
+        this.horarios = response.data.map(horario => {
+          // Limpiar el formato de hora si viene con segundos
+          const horaInicio = horario.hora_inicio.substring(0, 5);
+          const horaFin = horario.hora_fin.substring(0, 5);
+          
+          return {
+            ...horario,
+            hora_inicio: horaInicio,
+            hora_fin: horaFin,
+            tooltip: `${this.obtenerNombreTipo(horario.tipo_bloque_id)}\n${this.formatearHora(horaInicio)} - ${this.formatearHora(horaFin)}${horario.notas ? '\n' + horario.notas : ''}`
+          };
+        });
+        
+        console.log('Horarios procesados:', this.horarios);
         
       } catch (error) {
         console.error('Error al cargar horarios:', error);
@@ -643,10 +661,24 @@ export default {
     
     // Gestión de bloques
     obtenerBloquesDelDia(diaSemana) {
-      return this.horarios.filter(horario => horario.dia_semana === diaSemana);
+      const bloques = this.horarios.filter(horario => {
+        console.log('Comparando bloque:', {
+          bloque_dia_semana: horario.dia_semana,
+          buscando_dia: diaSemana,
+          coincide: horario.dia_semana === diaSemana,
+          horario_completo: horario
+        });
+        
+        return horario.dia_semana === diaSemana;
+      });
+      
+      console.log(`Bloques encontrados para día ${diaSemana}:`, bloques);
+      return bloques;
     },
     
     calcularEstiloBloque(bloque) {
+      console.log('Calculando estilo para bloque:', bloque);
+      
       const inicioMinutos = this.convertirHoraAMinutos(bloque.hora_inicio);
       const finMinutos = this.convertirHoraAMinutos(bloque.hora_fin);
       const duracionMinutos = finMinutos - inicioMinutos;
@@ -660,12 +692,26 @@ export default {
       
       const color = this.obtenerColorTipo(bloque.tipo_bloque_id);
       
-      return {
+      const estilo = {
         top: `${top}px`,
         height: `${height}px`,
         backgroundColor: color,
         borderColor: this.ajustarColor(color, -20)
       };
+      
+      console.log('Estilo calculado:', {
+        bloque: bloque.id,
+        inicioMinutos,
+        finMinutos,
+        duracionMinutos,
+        posicionMinutos,
+        top,
+        height,
+        color,
+        estilo
+      });
+      
+      return estilo;
     },
     
     crearNuevoBloque(fecha, hora) {
@@ -796,7 +842,7 @@ export default {
         this.modal.error = '';
         
         // Calcular día de la semana
-        const fecha = new Date(this.formulario.fecha);
+        const fecha = new Date(this.formulario.fecha + 'T00:00:00'); // Evitar problemas de timezone
         const diaSemana = fecha.getDay() === 0 ? 7 : fecha.getDay(); // Domingo = 7
         
         const datos = {
@@ -813,6 +859,8 @@ export default {
           datos.id = this.formulario.id;
         }
         
+        console.log('Enviando datos al servidor:', datos);
+        
         const token = localStorage.getItem('token');
         const metodo = this.modal.esEdicion ? 'put' : 'post';
         
@@ -820,7 +868,10 @@ export default {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
+        console.log('Respuesta del servidor:', response.data);
+        
         if (response.data?.success) {
+          console.log('Guardado exitoso, recargando horarios...');
           await this.cargarHorarios();
           this.cerrarModal();
         } else {
