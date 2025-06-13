@@ -43,25 +43,21 @@ if (!$userData) {
 logDebug("Usuario autenticado: " . $userData['id']);
 
 // Configuración de directorio de uploads - RUTA ABSOLUTA
-$baseDir = dirname(dirname(__FILE__)); // Directorio base del proyecto
-$uploadDir = $baseDir . '/uploads/profile_photos/';
+$documentRoot = $_SERVER['DOCUMENT_ROOT']; // /home/salucitas/htdocs/citas.salu.pro
+$uploadDir = $documentRoot . '/uploads/profile_photos/';
 $webPath = '/uploads/profile_photos/';
 
-logDebug("Directorio base: " . $baseDir);
+logDebug("Document root: " . $documentRoot);
 logDebug("Directorio de uploads: " . $uploadDir);
 
-// Crear directorio si no existe
+// Verificar que el directorio existe y es escribible
 if (!file_exists($uploadDir)) {
-    if (!mkdir($uploadDir, 0755, true)) {
-        logDebug("Error: No se pudo crear el directorio: " . $uploadDir);
-        http_response_code(500);
-        echo json_encode(["error" => "No se pudo crear el directorio de uploads"]);
-        exit;
-    }
-    logDebug("Directorio creado: " . $uploadDir);
+    logDebug("Error: El directorio no existe: " . $uploadDir);
+    http_response_code(500);
+    echo json_encode(["error" => "Directorio de uploads no encontrado"]);
+    exit;
 }
 
-// Verificar permisos del directorio
 if (!is_writable($uploadDir)) {
     logDebug("Error: El directorio no tiene permisos de escritura: " . $uploadDir);
     http_response_code(500);
@@ -69,7 +65,7 @@ if (!is_writable($uploadDir)) {
     exit;
 }
 
-logDebug("Directorio tiene permisos de escritura");
+logDebug("Directorio verificado y con permisos correctos");
 
 try {
     // Verificar si se subió un archivo
@@ -94,14 +90,16 @@ try {
                     $error_msg = "Error al escribir el archivo en disco";
                     break;
                 default:
-                    $error_msg = "Error desconocido en la subida";
+                    $error_msg = "Error desconocido en la subida: " . $_FILES['photo']['error'];
             }
         }
+        logDebug("Error en archivo: " . $error_msg);
         throw new Exception($error_msg);
     }
     
     $file = $_FILES['photo'];
     logDebug("Archivo recibido: " . $file['name'] . " (" . $file['size'] . " bytes)");
+    logDebug("Archivo temporal: " . $file['tmp_name']);
     
     // Validar tipo de archivo
     $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
@@ -112,7 +110,7 @@ try {
     logDebug("Tipo MIME detectado: " . $mimeType);
     
     if (!in_array($mimeType, $allowedTypes)) {
-        throw new Exception("Tipo de archivo no permitido. Solo se permiten imágenes (JPEG, PNG, GIF, WebP)");
+        throw new Exception("Tipo de archivo no permitido: " . $mimeType . ". Solo se permiten imágenes (JPEG, PNG, GIF, WebP)");
     }
     
     // Validar tamaño de archivo (máximo 5MB)
@@ -122,7 +120,7 @@ try {
     }
     
     // Generar nombre único para el archivo
-    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     $fileName = 'profile_' . $userData['id'] . '_' . time() . '.' . $extension;
     $filePath = $uploadDir . $fileName;
     $webFilePath = $webPath . $fileName;
@@ -139,7 +137,7 @@ try {
     
     if ($oldPhoto && $oldPhoto['foto_perfil']) {
         // Construir ruta del archivo anterior
-        $oldFilePath = $baseDir . $oldPhoto['foto_perfil'];
+        $oldFilePath = $documentRoot . $oldPhoto['foto_perfil'];
         logDebug("Intentando eliminar archivo anterior: " . $oldFilePath);
         if (file_exists($oldFilePath)) {
             if (unlink($oldFilePath)) {
@@ -154,7 +152,10 @@ try {
     
     // Mover archivo subido
     logDebug("Moviendo archivo de " . $file['tmp_name'] . " a " . $filePath);
+    
     if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+        $lastError = error_get_last();
+        logDebug("Error detallado: " . print_r($lastError, true));
         throw new Exception("Error al guardar el archivo. Verifique permisos del directorio.");
     }
     
@@ -165,9 +166,10 @@ try {
         throw new Exception("El archivo no se guardó correctamente");
     }
     
-    logDebug("Archivo verificado: " . $filePath . " (" . filesize($filePath) . " bytes)");
+    $fileSize = filesize($filePath);
+    logDebug("Archivo verificado: " . $filePath . " (" . $fileSize . " bytes)");
     
-    // Redimensionar imagen si es necesario (opcional)
+    // Redimensionar imagen si es necesario
     $resizedPath = resizeImage($filePath, 300, 300);
     if ($resizedPath && $resizedPath !== $filePath) {
         // Si se redimensionó correctamente, usar la imagen redimensionada
@@ -184,24 +186,35 @@ try {
     $stmt = $conn->prepare("UPDATE usuarios SET foto_perfil = :foto_perfil WHERE id = :user_id");
     $stmt->bindParam(':foto_perfil', $webFilePath);
     $stmt->bindParam(':user_id', $userData['id']);
-    $stmt->execute();
+    
+    if (!$stmt->execute()) {
+        logDebug("Error actualizando base de datos: " . print_r($stmt->errorInfo(), true));
+        throw new Exception("Error al actualizar la base de datos");
+    }
     
     logDebug("Base de datos actualizada con: " . $webFilePath);
     
     // Registrar en logs de auditoría
-    $logStmt = $conn->prepare("INSERT INTO logs_auditoria (usuario_id, tabla_afectada, registro_id, accion, datos_nuevos, fecha_accion) 
-                              VALUES (:user_id, 'usuarios', :user_id, 'UPDATE_PHOTO', :datos_nuevos, NOW())");
-    
-    $datos_nuevos = json_encode([
-        'foto_perfil' => $webFilePath,
-        'archivo_original' => $file['name'],
-        'tamano' => $file['size'],
-        'ruta_fisica' => $filePath
-    ]);
-    
-    $logStmt->bindParam(':user_id', $userData['id']);
-    $logStmt->bindParam(':datos_nuevos', $datos_nuevos);
-    $logStmt->execute();
+    try {
+        $logStmt = $conn->prepare("INSERT INTO logs_auditoria (usuario_id, tabla_afectada, registro_id, accion, datos_nuevos, fecha_accion) 
+                                  VALUES (:user_id, 'usuarios', :user_id, 'UPDATE_PHOTO', :datos_nuevos, NOW())");
+        
+        $datos_nuevos = json_encode([
+            'foto_perfil' => $webFilePath,
+            'archivo_original' => $file['name'],
+            'tamano' => $fileSize,
+            'ruta_fisica' => $filePath
+        ]);
+        
+        $logStmt->bindParam(':user_id', $userData['id']);
+        $logStmt->bindParam(':datos_nuevos', $datos_nuevos);
+        $logStmt->execute();
+        
+        logDebug("Log de auditoría guardado");
+    } catch (Exception $e) {
+        logDebug("Error guardando log de auditoría: " . $e->getMessage());
+        // No fallar por esto
+    }
     
     logDebug("Proceso completado exitosamente");
     
@@ -211,7 +224,7 @@ try {
         "message" => "Foto de perfil actualizada correctamente",
         "photo_url" => $webFilePath,
         "file_name" => $fileName,
-        "file_size" => filesize($filePath)
+        "file_size" => $fileSize
     ]);
     
 } catch(Exception $e) {
@@ -228,15 +241,19 @@ function resizeImage($sourcePath, $targetWidth, $targetHeight) {
         // Obtener información de la imagen
         $imageInfo = getimagesize($sourcePath);
         if (!$imageInfo) {
-            return false;
+            logDebug("No se pudo obtener información de la imagen");
+            return $sourcePath;
         }
         
         $sourceWidth = $imageInfo[0];
         $sourceHeight = $imageInfo[1];
         $imageType = $imageInfo[2];
         
+        logDebug("Imagen original: {$sourceWidth}x{$sourceHeight}, tipo: {$imageType}");
+        
         // Si la imagen ya es del tamaño correcto o menor, no redimensionar
         if ($sourceWidth <= $targetWidth && $sourceHeight <= $targetHeight) {
+            logDebug("Imagen no necesita redimensionamiento");
             return $sourcePath;
         }
         
@@ -244,6 +261,8 @@ function resizeImage($sourcePath, $targetWidth, $targetHeight) {
         $ratio = min($targetWidth / $sourceWidth, $targetHeight / $sourceHeight);
         $newWidth = round($sourceWidth * $ratio);
         $newHeight = round($sourceHeight * $ratio);
+        
+        logDebug("Redimensionando a: {$newWidth}x{$newHeight}");
         
         // Crear imagen fuente
         switch ($imageType) {
@@ -260,15 +279,18 @@ function resizeImage($sourcePath, $targetWidth, $targetHeight) {
                 if (function_exists('imagecreatefromwebp')) {
                     $sourceImage = imagecreatefromwebp($sourcePath);
                 } else {
-                    return $sourcePath; // WebP no soportado
+                    logDebug("WebP no soportado, manteniendo imagen original");
+                    return $sourcePath;
                 }
                 break;
             default:
-                return false;
+                logDebug("Tipo de imagen no soportado para redimensionamiento");
+                return $sourcePath;
         }
         
         if (!$sourceImage) {
-            return false;
+            logDebug("No se pudo crear la imagen fuente");
+            return $sourcePath;
         }
         
         // Crear imagen destino
@@ -312,11 +334,17 @@ function resizeImage($sourcePath, $targetWidth, $targetHeight) {
         imagedestroy($sourceImage);
         imagedestroy($targetImage);
         
-        return $success ? $newPath : false;
+        if ($success) {
+            logDebug("Imagen redimensionada guardada en: " . $newPath);
+            return $newPath;
+        } else {
+            logDebug("Error guardando imagen redimensionada");
+            return $sourcePath;
+        }
         
     } catch (Exception $e) {
         logDebug("Error en redimensionamiento: " . $e->getMessage());
-        return false;
+        return $sourcePath;
     }
 }
 ?>
