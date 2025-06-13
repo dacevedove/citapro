@@ -626,6 +626,8 @@ export default {
           }
         });
 
+        console.log('Respuesta del servidor:', response.data);
+
         if (response.data && response.data.success) {
           await this.cargarHorarios();
           this.cerrarModal();

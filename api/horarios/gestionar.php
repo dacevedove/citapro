@@ -114,6 +114,7 @@ function listarHorarios() {
     
     $stmt = $conn->prepare($sql);
     foreach ($params as $param => $value) {
+        // Usar bindValue en lugar de bindParam para evitar errores de referencia
         $stmt->bindValue($param, $value);
     }
     $stmt->execute();
@@ -191,16 +192,17 @@ function crearHorario() {
             VALUES (:doctor_id, :tipo_bloque_id, :fecha_inicio, :dia_semana, :hora_inicio, :hora_fin, :duracion_minutos, :notas, :creado_por)
         ");
         
-        $stmt->bindParam(':doctor_id', $data->doctor_id);
-        $stmt->bindParam(':tipo_bloque_id', $data->tipo_bloque_id);
-        $stmt->bindParam(':fecha_inicio', $fecha_inicio_semana);
-        $stmt->bindParam(':dia_semana', $data->dia_semana);
-        $stmt->bindParam(':hora_inicio', $data->hora_inicio);
-        $stmt->bindParam(':hora_fin', $data->hora_fin);
-        $stmt->bindParam(':duracion_minutos', $duracion);
+        // Usar bindValue para todos los parámetros para evitar problemas de referencia
+        $stmt->bindValue(':doctor_id', $data->doctor_id);
+        $stmt->bindValue(':tipo_bloque_id', $data->tipo_bloque_id);
+        $stmt->bindValue(':fecha_inicio', $fecha_inicio_semana);
+        $stmt->bindValue(':dia_semana', $data->dia_semana);
+        $stmt->bindValue(':hora_inicio', $data->hora_inicio);
+        $stmt->bindValue(':hora_fin', $data->hora_fin);
+        $stmt->bindValue(':duracion_minutos', $duracion);
         $notas = isset($data->notas) ? $data->notas : null;
-        $stmt->bindParam(':notas', $notas);
-        $stmt->bindParam(':creado_por', $userData['id']);
+        $stmt->bindValue(':notas', $notas);
+        $stmt->bindValue(':creado_por', $userData['id']);
         
         $resultado = $stmt->execute();
         
@@ -531,11 +533,12 @@ function registrarLogHorario($horario_id, $accion, $datos_anteriores, $datos_nue
             VALUES (:horario_id, :accion, :datos_anteriores, :datos_nuevos, :usuario_id)
         ");
         
-        $stmt->bindParam(':horario_id', $horario_id);
-        $stmt->bindParam(':accion', $accion);
-        $stmt->bindParam(':datos_anteriores', $datos_anteriores ? json_encode($datos_anteriores) : null);
-        $stmt->bindParam(':datos_nuevos', $datos_nuevos ? json_encode($datos_nuevos) : null);
-        $stmt->bindParam(':usuario_id', $userData['id']);
+        // Usar bindValue en lugar de bindParam para evitar problemas de referencia
+        $stmt->bindValue(':horario_id', $horario_id);
+        $stmt->bindValue(':accion', $accion);
+        $stmt->bindValue(':datos_anteriores', $datos_anteriores ? json_encode($datos_anteriores) : null);
+        $stmt->bindValue(':datos_nuevos', $datos_nuevos ? json_encode($datos_nuevos) : null);
+        $stmt->bindValue(':usuario_id', $userData['id']);
         
         $stmt->execute();
     } catch (Exception $e) {
