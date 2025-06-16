@@ -508,7 +508,7 @@ export default {
     },
     
     // Horas disponibles para el selector
-    get horasDisponibles() {
+    horasDisponibles() {
       return this.franjas.map(franja => ({
         valor: franja.hora,
         texto: this.formatearHora(franja.hora)
@@ -1804,6 +1804,7 @@ export default {
 
   .control-grupo {
     min-width: 180px; 
+   }
   
   .semana-navegacion {
     justify-content: center;
