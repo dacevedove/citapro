@@ -1803,8 +1803,7 @@ export default {
   }
 
   .control-grupo {
-    min-width: 180px;
-  }
+    min-width: 180px; 
   
   .semana-navegacion {
     justify-content: center;
