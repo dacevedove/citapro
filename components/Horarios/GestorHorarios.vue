@@ -7,20 +7,41 @@
         <!-- Selector de Doctor (solo para admin/coordinador) -->
         <div class="control-group" v-if="userRole !== 'doctor'">
           <label>Doctor:</label>
-          <select 
-            v-model="filtros.doctorId" 
-            @change="onDoctorChange"
-            class="form-control"
-          >
-            <option value="">Seleccione un doctor</option>
-            <option 
-              v-for="doctor in doctores" 
-              :key="doctor.id" 
-              :value="doctor.id"
+          <div class="doctor-selector-container">
+            <!-- Foto del doctor seleccionado -->
+            <div v-if="doctorSeleccionado" class="doctor-seleccionado">
+              <ProfilePhoto
+                :photo-url="doctorSeleccionado.foto_perfil"
+                :user-name="doctorSeleccionado.nombre + ' ' + doctorSeleccionado.apellido"
+                :initials="getInitials(doctorSeleccionado.nombre, doctorSeleccionado.apellido)"
+                size="sm"
+                :show-initials="true"
+                :border="true"
+                :show-role="true"
+                user-role="doctor"
+                class="doctor-foto-selector"
+              />
+              <div class="doctor-info-selector">
+                <span class="doctor-nombre-selector">{{ doctorSeleccionado.nombre }} {{ doctorSeleccionado.apellido }}</span>
+                <span class="doctor-especialidad-selector">{{ doctorSeleccionado.especialidad_nombre }}</span>
+              </div>
+            </div>
+            
+            <select 
+              v-model="filtros.doctorId" 
+              @change="onDoctorChange"
+              class="form-control doctor-select"
             >
-              {{ doctor.nombre }} {{ doctor.apellido }} - {{ doctor.especialidad_nombre }}
-            </option>
-          </select>
+              <option value="">Seleccione un doctor</option>
+              <option 
+                v-for="doctor in doctores" 
+                :key="doctor.id" 
+                :value="doctor.id"
+              >
+                {{ doctor.nombre }} {{ doctor.apellido }} - {{ doctor.especialidad_nombre }}
+              </option>
+            </select>
+          </div>
         </div>
 
         <!-- Navegación de semanas -->
@@ -322,9 +343,13 @@
 <script>
 import axios from 'axios';
 import { useAuthStore } from '../../store/auth';
+import ProfilePhoto from '../Shared/ProfilePhoto.vue';
 
 export default {
   name: 'GestorHorarios',
+  components: {
+    ProfilePhoto // Agregar este componente
+  },
   data() {
     return {
       // Estado principal
@@ -378,6 +403,11 @@ export default {
       return this.authStore.userRole;
     },
     
+    doctorSeleccionado() {
+      if (!this.filtros.doctorId) return null;
+      return this.doctores.find(doctor => doctor.id == this.filtros.doctorId);
+    },
+
     // Información de la semana actual
     inicioSemana() {
       const fecha = new Date(this.semanaActual);
@@ -478,10 +508,10 @@ export default {
     },
     
     // Horas disponibles para el selector
-    horasDisponibles() {
+    get horasDisponibles() {
       return this.franjas.map(franja => ({
         valor: franja.hora,
-        texto: franja.horaFormateada
+        texto: this.formatearHora(franja.hora)
       }));
     },
     
@@ -601,6 +631,12 @@ export default {
       }
     },
     
+    getInitials(nombre, apellido) {
+      const n = (nombre || '').charAt(0).toUpperCase();
+      const a = (apellido || '').charAt(0).toUpperCase();
+      return n + a || 'D';
+    },
+
     async cargarTiposBloque() {
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/horarios/TiposBloque.php', {
@@ -1021,13 +1057,25 @@ export default {
     
     formatearHora(hora) {
       const [h, m] = hora.split(':');
-      const horas = parseInt(h);
+      let horas = parseInt(h);
       const minutos = parseInt(m);
       
-      if (minutos === 0) {
-        return `${horas}:00`;
+      // Determinar AM/PM
+      const ampm = horas >= 12 ? 'PM' : 'AM';
+      
+      // Convertir a formato 12 horas
+      if (horas === 0) {
+        horas = 12; // Medianoche
+      } else if (horas > 12) {
+        horas = horas - 12; // PM
       }
-      return `${horas}:${minutos.toString().padStart(2, '0')}`;
+      // Si horas === 12, mantener 12 (mediodía)
+      
+      // Formatear minutos
+      if (minutos === 0) {
+        return `${horas}:00 ${ampm}`;
+      }
+      return `${horas}:${minutos.toString().padStart(2, '0')} ${ampm}`;
     },
     
     obtenerNombreDia(fecha) {
@@ -1202,6 +1250,60 @@ export default {
 .empty-state p {
   margin: 0;
   color: var(--secondary-color);
+}
+
+/* Selector de doctor */
+
+.doctor-selector-container {
+  position: relative;
+}
+
+.doctor-seleccionado {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.doctor-foto-selector {
+  flex-shrink: 0;
+}
+
+.doctor-info-selector {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.doctor-nombre-selector {
+  font-weight: 600;
+  color: var(--dark-color);
+  font-size: 14px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-especialidad-selector {
+  font-size: 12px;
+  color: var(--secondary-color);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-select {
+  background-color: var(--light-color);
+  font-size: 13px;
+  padding: 6px 10px;
 }
 
 /* Calendario */
@@ -1687,7 +1789,19 @@ export default {
     justify-content: center;
     flex-wrap: wrap;
   }
+    .doctor-seleccionado {
+    padding: 6px 10px;
+    gap: 10px;
+  }
   
+  .doctor-nombre-selector {
+    font-size: 13px;
+  }
+  
+  .doctor-especialidad-selector {
+    font-size: 11px;
+  }
+
   .control-grupo {
     min-width: 180px;
   }
@@ -1745,6 +1859,19 @@ export default {
   
   .bloque-acciones {
     display: none;
+  }
+
+  .doctor-seleccionado {
+    padding: 4px 8px;
+    gap: 8px;
+  }
+  
+  .doctor-nombre-selector {
+    font-size: 12px;
+  }
+  
+  .doctor-especialidad-selector {
+    font-size: 10px;
   }
 }
 </style>
