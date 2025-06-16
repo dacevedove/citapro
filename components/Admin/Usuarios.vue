@@ -68,7 +68,6 @@
       <table class="usuarios-table">
         <thead>
           <tr>
-            <th>Foto</th>
             <th>Usuario</th>
             <th>Email</th>
             <th>Cédula</th>
@@ -81,22 +80,24 @@
         <tbody>
           <tr v-for="usuario in usuarios" :key="usuario.id">
             <td>
-              <ProfilePhoto
-                :photo-url="usuario.foto_perfil"
-                :user-name="usuario.nombre + ' ' + usuario.apellido"
-                :initials="getInitials(usuario.nombre, usuario.apellido)"
-                size="sm"
-                :show-initials="true"
-                :border="true"
-                @click="editarFotoUsuario(usuario)"
-                :clickable="true"
-                class="table-photo"
-              />
-            </td>
-            <td>
-              <div class="usuario-info">
-                <strong>{{ usuario.nombre }} {{ usuario.apellido }}</strong>
-                <small>{{ usuario.telefono }}</small>
+              <div class="usuario-info-completa">
+                <ProfilePhoto
+                  :photo-url="usuario.foto_perfil"
+                  :user-name="usuario.nombre + ' ' + usuario.apellido"
+                  :initials="getInitials(usuario.nombre, usuario.apellido)"
+                  size="sm"
+                  :show-initials="true"
+                  :border="true"
+                  @click="editarFotoUsuario(usuario)"
+                  :clickable="true"
+                  class="usuario-avatar"
+                />
+                <div class="usuario-detalles">
+                  <strong class="usuario-nombre">{{ usuario.nombre }} {{ usuario.apellido }}</strong>
+                  <small class="usuario-telefono">
+                    <i class="fas fa-phone"></i> {{ usuario.telefono || 'Sin teléfono' }}
+                  </small>
+                </div>
               </div>
             </td>
             <td>{{ usuario.email }}</td>
