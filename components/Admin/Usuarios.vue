@@ -395,7 +395,7 @@
   .usuarios-table th:first-child,
   .usuarios-table td:first-child {
     width: 150px;
-    min-width: 140px;
+    min-width: 141px;
   }
 }
 
