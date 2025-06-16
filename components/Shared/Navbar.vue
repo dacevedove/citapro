@@ -15,25 +15,60 @@
         
         <div class="dropdown">
           <button class="dropdown-toggle" @click.stop="toggleDropdown">
-            <div class="user-avatar">
-              <img 
-                v-if="userPhoto && !photoError" 
-                :src="getPhotoUrl(userPhoto)" 
-                :alt="'Foto de ' + userName"
-                class="avatar-image"
-                @error="handlePhotoError"
-              >
-              <i v-else class="fas fa-user-circle"></i>
+            <ProfilePhoto
+              :photo-url="userPhoto"
+              :user-name="userName"
+              :user-role="userRole"
+              :initials="userInitials"
+              size="sm"
+              :border="false"
+              :show-initials="true"
+              :show-role="false"
+              :clickable="false"
+              class="navbar-avatar"
+            />
+            <div class="dropdown-indicator">
+              <i :class="['fas', showDropdown ? 'fa-chevron-up' : 'fa-chevron-down']"></i>
             </div>
           </button>
           
           <div v-show="showDropdown" class="dropdown-menu">
-            <router-link to="/perfil" @click="closeDropdown" class="dropdown-item">
-              <i class="fas fa-user-edit"></i> Mi Perfil
-            </router-link>
+            <div class="dropdown-header">
+              <ProfilePhoto
+                :photo-url="userPhoto"
+                :user-name="userName"
+                :user-role="userRole"
+                :initials="userInitials"
+                size="md"
+                :border="true"
+                :show-initials="true"
+                :show-role="true"
+                :clickable="false"
+              />
+              <div class="dropdown-user-info">
+                <span class="dropdown-user-name">{{ userName }}</span>
+                <span class="dropdown-user-role">{{ formatRole }}</span>
+                <span class="dropdown-user-email">{{ userEmail }}</span>
+              </div>
+            </div>
+            
             <div class="dropdown-divider"></div>
-            <a href="#" @click.prevent="logout" class="dropdown-item">
-              <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+            
+            <router-link to="/perfil" @click="closeDropdown" class="dropdown-item">
+              <i class="fas fa-user-edit"></i> 
+              <span>Mi Perfil</span>
+            </router-link>
+            
+            <router-link to="/configuracion" @click="closeDropdown" class="dropdown-item">
+              <i class="fas fa-cog"></i>
+              <span>Configuración</span>
+            </router-link>
+            
+            <div class="dropdown-divider"></div>
+            
+            <a href="#" @click.prevent="logout" class="dropdown-item logout-item">
+              <i class="fas fa-sign-out-alt"></i>
+              <span>Cerrar sesión</span>
             </a>
           </div>
         </div>
@@ -44,14 +79,16 @@
 
 <script>
 import { useAuthStore } from '../../store/auth';
+import ProfilePhoto from './ProfilePhoto.vue';
 
 export default {
   name: 'Navbar',
+  components: {
+    ProfilePhoto
+  },
   data() {
     return {
-      showDropdown: false,
-      sidebarVisible: true,
-      photoError: false
+      showDropdown: false
     }
   },
   computed: {
@@ -66,6 +103,15 @@ export default {
     },
     userPhoto() {
       return this.authStore.user?.foto_perfil;
+    },
+    userEmail() {
+      return this.authStore.user?.email || '';
+    },
+    userInitials() {
+      if (!this.authStore.user) return 'U';
+      const nombre = this.authStore.user.nombre || '';
+      const apellido = this.authStore.user.apellido || '';
+      return (nombre.charAt(0) + apellido.charAt(0)).toUpperCase();
     },
     formatRole() {
       switch (this.userRole) {
@@ -89,28 +135,21 @@ export default {
     closeDropdown() {
       this.showDropdown = false;
     },
-    getPhotoUrl(photoPath) {
-      if (!photoPath) return '';
-      if (photoPath.startsWith('http')) return photoPath;
-      return window.location.origin + photoPath;
-    },
-    handlePhotoError() {
-      this.photoError = true;
-    },
     logout() {
       this.authStore.logout();
       this.showDropdown = false;
+    },
+    handleClickOutside(event) {
+      if (!this.$el.contains(event.target)) {
+        this.showDropdown = false;
+      }
     }
   },
   mounted() {
-    document.addEventListener('click', (e) => {
-      if (!this.$el.contains(e.target)) {
-        this.showDropdown = false;
-      }
-    });
+    document.addEventListener('click', this.handleClickOutside);
   },
   beforeUnmount() {
-    document.removeEventListener('click', this.closeDropdown);
+    document.removeEventListener('click', this.handleClickOutside);
   }
 }
 </script>
@@ -121,21 +160,23 @@ export default {
   top: 0;
   left: 0;
   right: 0;
-  height: var(--navbar-height);
+  height: var(--navbar-height, 60px);
   background-color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .navbar-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 24px;
   height: 100%;
   width: 100%;
 }
 
+/* Brand */
 .navbar-brand {
   display: flex;
   align-items: center;
@@ -144,17 +185,22 @@ export default {
 
 .brand-link {
   text-decoration: none;
-  color: var(--primary-color);
+  color: var(--primary-color, #007bff);
   display: flex;
   align-items: center;
+  transition: opacity 0.2s ease;
+}
+
+.brand-link:hover {
+  opacity: 0.8;
 }
 
 .brand-logo {
   height: 36px;
   width: auto;
-  margin-right: 10px;
 }
 
+/* User Section */
 .navbar-user {
   display: flex;
   align-items: center;
@@ -165,21 +211,25 @@ export default {
 .user-info {
   display: flex;
   flex-direction: column;
-  margin-right: 15px;
+  margin-right: 16px;
   text-align: right;
 }
 
 .user-name {
-  font-weight: 500;
-  color: var(--dark-color);
+  font-weight: 600;
+  color: var(--dark-color, #2c3e50);
   font-size: 14px;
+  line-height: 1.2;
 }
 
 .user-role {
   font-size: 12px;
-  color: var(--secondary-color);
+  color: var(--secondary-color, #6c757d);
+  margin-top: 2px;
+  font-weight: 500;
 }
 
+/* Dropdown */
 .dropdown {
   position: relative;
   display: inline-block;
@@ -189,91 +239,225 @@ export default {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 5px;
-  border-radius: 50%;
+  padding: 8px;
+  border-radius: 8px;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .dropdown-toggle:hover {
-  background-color: #f8f9fa;
+  background-color: rgba(0, 123, 255, 0.05);
 }
 
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
+.dropdown-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.navbar-avatar {
+  flex-shrink: 0;
+}
+
+.dropdown-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
 }
 
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.dropdown-indicator i {
+  font-size: 10px;
+  color: var(--secondary-color, #6c757d);
 }
 
-.user-avatar i {
-  font-size: 24px;
-  color: white;
+.dropdown-toggle:hover .dropdown-indicator i {
+  color: var(--primary-color, #007bff);
 }
 
+/* Dropdown Menu */
 .dropdown-menu {
   position: absolute;
-  top: 45px;
+  top: calc(100% + 8px);
   right: 0;
-  min-width: 200px;
+  min-width: 280px;
   background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  margin-top: 5px;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   z-index: 9999;
-  display: block;
-  visibility: visible !important;
-  opacity: 1 !important;
-  border: 1px solid #e9ecef;
   overflow: hidden;
+  animation: dropdownFadeIn 0.2s ease-out;
 }
 
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dropdown Header */
+.dropdown-header {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  gap: 16px;
+}
+
+.dropdown-user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dropdown-user-name {
+  font-weight: 600;
+  color: var(--dark-color, #2c3e50);
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.dropdown-user-role {
+  font-size: 13px;
+  color: var(--primary-color, #007bff);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dropdown-user-email {
+  font-size: 12px;
+  color: var(--secondary-color, #6c757d);
+  font-weight: 400;
+}
+
+/* Dropdown Items */
 .dropdown-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: 14px 20px;
   text-decoration: none;
-  color: #495057;
+  color: var(--dark-color, #495057);
   transition: all 0.2s ease;
   font-size: 14px;
   font-weight: 500;
+  gap: 12px;
 }
 
 .dropdown-item i {
-  margin-right: 12px;
-  color: #6c757d;
+  color: var(--secondary-color, #6c757d);
   width: 16px;
   text-align: center;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.dropdown-item span {
+  flex: 1;
 }
 
 .dropdown-item:hover {
-  background-color: #f8f9fa;
-  color: #495057;
+  background-color: rgba(0, 123, 255, 0.05);
+  color: var(--primary-color, #007bff);
+}
+
+.dropdown-item:hover i {
+  color: var(--primary-color, #007bff);
+}
+
+.logout-item:hover {
+  background-color: rgba(220, 53, 69, 0.05);
+  color: #dc3545;
+}
+
+.logout-item:hover i {
+  color: #dc3545;
 }
 
 .dropdown-divider {
   height: 1px;
-  background-color: #e9ecef;
-  margin: 4px 0;
+  background-color: rgba(0, 0, 0, 0.06);
+  margin: 8px 0;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
+  .navbar-container {
+    padding: 0 16px;
+  }
+  
   .user-info {
     display: none;
   }
   
-  .navbar-container {
-    padding: 0 15px;
+  .dropdown-menu {
+    min-width: 260px;
+    right: -8px;
   }
+  
+  .dropdown-header {
+    padding: 16px;
+  }
+  
+  .dropdown-item {
+    padding: 12px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dropdown-menu {
+    min-width: 240px;
+    right: -16px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .navbar {
+    background-color: #1a1a1a;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .dropdown-menu {
+    background-color: #2d2d2d;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .dropdown-header {
+    background: linear-gradient(135deg, #2d2d2d 0%, #3d3d3d 100%);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .dropdown-user-name {
+    color: #ffffff;
+  }
+  
+  .dropdown-item {
+    color: #e0e0e0;
+  }
+  
+  .dropdown-item:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+  }
+  
+  .dropdown-divider {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Animation for dropdown indicator */
+.dropdown-toggle[aria-expanded="true"] .dropdown-indicator {
+  transform: rotate(180deg);
 }
 </style>
