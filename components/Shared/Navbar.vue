@@ -13,8 +13,8 @@
           <span class="user-role">{{ formatRole }}</span>
         </div>
         
-        <div class="dropdown">
-          <button class="dropdown-toggle" @click.stop="toggleDropdown">
+        <div class="dropdown" ref="dropdownRef">
+          <button class="dropdown-toggle" @click.stop="toggleDropdown" ref="toggleRef">
             <div class="user-avatar">
               <img 
                 v-if="userPhoto && !photoError" 
@@ -33,47 +33,55 @@
             </div>
           </button>
           
-          <div v-show="showDropdown" class="dropdown-menu">
-            <div class="dropdown-header">
-              <div class="header-avatar">
-                <img 
-                  v-if="userPhoto && !photoError" 
-                  :src="getPhotoUrl(userPhoto)" 
-                  :alt="'Foto de ' + userName"
-                  class="header-avatar-image"
-                  @error="handlePhotoError"
-                >
-                <div v-else class="header-avatar-placeholder">
-                  <span v-if="userInitials" class="header-avatar-initials">{{ userInitials }}</span>
-                  <i v-else class="fas fa-user"></i>
+          <!-- Dropdown menu with dynamic positioning -->
+          <Teleport to="body">
+            <div 
+              v-show="showDropdown" 
+              class="dropdown-menu"
+              :style="dropdownStyle"
+              ref="menuRef"
+            >
+              <div class="dropdown-header">
+                <div class="header-avatar">
+                  <img 
+                    v-if="userPhoto && !photoError" 
+                    :src="getPhotoUrl(userPhoto)" 
+                    :alt="'Foto de ' + userName"
+                    class="header-avatar-image"
+                    @error="handlePhotoError"
+                  >
+                  <div v-else class="header-avatar-placeholder">
+                    <span v-if="userInitials" class="header-avatar-initials">{{ userInitials }}</span>
+                    <i v-else class="fas fa-user"></i>
+                  </div>
+                </div>
+                <div class="dropdown-user-info">
+                  <span class="dropdown-user-name">{{ userName }}</span>
+                  <span class="dropdown-user-role">{{ formatRole }}</span>
+                  <span class="dropdown-user-email">{{ userEmail }}</span>
                 </div>
               </div>
-              <div class="dropdown-user-info">
-                <span class="dropdown-user-name">{{ userName }}</span>
-                <span class="dropdown-user-role">{{ formatRole }}</span>
-                <span class="dropdown-user-email">{{ userEmail }}</span>
-              </div>
+              
+              <div class="dropdown-divider"></div>
+              
+              <router-link to="/perfil" @click="closeDropdown" class="dropdown-item">
+                <i class="fas fa-user-edit"></i> 
+                <span>Mi Perfil</span>
+              </router-link>
+              
+              <router-link to="/configuracion" @click="closeDropdown" class="dropdown-item">
+                <i class="fas fa-cog"></i>
+                <span>Configuración</span>
+              </router-link>
+              
+              <div class="dropdown-divider"></div>
+              
+              <a href="#" @click.prevent="logout" class="dropdown-item logout-item">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Cerrar sesión</span>
+              </a>
             </div>
-            
-            <div class="dropdown-divider"></div>
-            
-            <router-link to="/perfil" @click="closeDropdown" class="dropdown-item">
-              <i class="fas fa-user-edit"></i> 
-              <span>Mi Perfil</span>
-            </router-link>
-            
-            <router-link to="/configuracion" @click="closeDropdown" class="dropdown-item">
-              <i class="fas fa-cog"></i>
-              <span>Configuración</span>
-            </router-link>
-            
-            <div class="dropdown-divider"></div>
-            
-            <a href="#" @click.prevent="logout" class="dropdown-item logout-item">
-              <i class="fas fa-sign-out-alt"></i>
-              <span>Cerrar sesión</span>
-            </a>
-          </div>
+          </Teleport>
         </div>
       </div>
     </div>
@@ -88,7 +96,8 @@ export default {
   data() {
     return {
       showDropdown: false,
-      photoError: false
+      photoError: false,
+      dropdownStyle: {}
     }
   },
   computed: {
@@ -127,13 +136,48 @@ export default {
   },
   methods: {
     toggleDropdown(event) {
-      console.log('Toggle dropdown clicked'); // Debug
+      console.log('Toggle dropdown clicked');
       if (event) {
         event.stopPropagation();
       }
       this.showDropdown = !this.showDropdown;
-      console.log('Dropdown state:', this.showDropdown); // Debug
+      console.log('Dropdown state:', this.showDropdown);
+      
+      if (this.showDropdown) {
+        this.$nextTick(() => {
+          this.updateDropdownPosition();
+        });
+      }
     },
+    
+    updateDropdownPosition() {
+      if (!this.$refs.toggleRef) return;
+      
+      const toggleRect = this.$refs.toggleRef.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const menuWidth = 280; // ancho del dropdown
+      
+      // Calcular posición
+      let left = toggleRect.right - menuWidth;
+      let top = toggleRect.bottom + 8;
+      
+      // Ajustar si se sale del viewport
+      if (left < 16) {
+        left = 16;
+      }
+      
+      if (left + menuWidth > viewportWidth - 16) {
+        left = viewportWidth - menuWidth - 16;
+      }
+      
+      this.dropdownStyle = {
+        position: 'fixed',
+        top: `${top}px`,
+        left: `${left}px`,
+        zIndex: 99999
+      };
+    },
+    
     closeDropdown() {
       this.showDropdown = false;
     },
@@ -150,17 +194,26 @@ export default {
       this.showDropdown = false;
     },
     handleClickOutside(event) {
-      if (!this.$el.contains(event.target)) {
+      if (!this.$refs.dropdownRef?.contains(event.target) && 
+          !this.$refs.menuRef?.contains(event.target)) {
         this.showDropdown = false;
+      }
+    },
+    
+    handleResize() {
+      if (this.showDropdown) {
+        this.updateDropdownPosition();
       }
     }
   },
   mounted() {
-    console.log('Navbar mounted'); // Debug
+    console.log('Navbar mounted');
     document.addEventListener('click', this.handleClickOutside);
+    window.addEventListener('resize', this.handleResize);
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside);
+    window.removeEventListener('resize', this.handleResize);
   }
 }
 </script>
@@ -326,15 +379,11 @@ export default {
 
 /* Dropdown Menu */
 .dropdown-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
   min-width: 280px;
   background-color: #ffffff;
   border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  z-index: 9999;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   overflow: hidden;
   animation: dropdownFadeIn 0.2s ease-out;
 }
@@ -485,26 +534,6 @@ export default {
   
   .user-info {
     display: none;
-  }
-  
-  .dropdown-menu {
-    min-width: 260px;
-    right: -8px;
-  }
-  
-  .dropdown-header {
-    padding: 16px;
-  }
-  
-  .dropdown-item {
-    padding: 12px 16px;
-  }
-}
-
-@media (max-width: 480px) {
-  .dropdown-menu {
-    min-width: 240px;
-    right: -16px;
   }
 }
 </style>
