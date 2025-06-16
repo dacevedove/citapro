@@ -2037,6 +2037,7 @@ h1 {
 }
 
 .usuario-nombre {
+  text-align: left;
   display: block;
   font-weight: 500;
   color: var(--dark-color);
