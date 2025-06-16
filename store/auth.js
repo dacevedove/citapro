@@ -26,7 +26,11 @@ export const useAuthStore = defineStore('auth', {
       const apellido = state.user.apellido || '';
       return (nombre.charAt(0) + apellido.charAt(0)).toUpperCase();
     },
-    userPhoto: (state) => state.user?.foto_perfil || null,
+    userPhoto: (state) => {
+      const photo = state.user?.foto_perfil;
+      console.log('Store getter - userPhoto:', photo);
+      return photo;
+    },
     userEmail: (state) => state.user?.email || ''
   },
   
@@ -46,6 +50,8 @@ export const useAuthStore = defineStore('auth', {
           
           // Configurar axios con el nuevo token
           axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
+          
+          console.log('Login successful, user photo:', this.user?.foto_perfil);
           
           // Redirigir según rol de usuario
           this.redirectBasedOnRole();
@@ -71,6 +77,7 @@ export const useAuthStore = defineStore('auth', {
         
         if (response.data && response.data.valid) {
           this.user = response.data.user;
+          console.log('Token validated, user photo:', this.user?.foto_perfil);
           return true;
         } else {
           this.logout();
@@ -96,8 +103,10 @@ export const useAuthStore = defineStore('auth', {
         });
         
         if (response.data.success) {
-          // Actualizar solo los datos del usuario, mantener el token
-          this.user = { ...this.user, ...response.data.user };
+          // Crear un nuevo objeto completo para forzar reactividad
+          const updatedUser = { ...this.user, ...response.data.user };
+          this.user = updatedUser;
+          console.log('User data refreshed, photo:', this.user?.foto_perfil);
           return true;
         }
         return false;
@@ -108,19 +117,32 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async updateUserPhoto(photoUrl) {
-      console.log('Store - Actualizando foto de:', this.user?.foto_perfil, 'a:', photoUrl);
+      console.log('Store - updateUserPhoto called with:', photoUrl);
+      console.log('Store - Current user before update:', this.user);
+      
       if (this.user) {
-        // Crear un nuevo objeto para trigger reactividad
-        this.user = { ...this.user, foto_perfil: photoUrl };
-        console.log('Store - Foto actualizada en el store:', this.user.foto_perfil);
+        // Crear un nuevo objeto completamente para forzar reactividad en Vue
+        const updatedUser = {
+          ...this.user,
+          foto_perfil: photoUrl
+        };
+        
+        // Asignar el nuevo objeto
+        this.user = updatedUser;
+        
+        console.log('Store - User after photo update:', this.user);
+        console.log('Store - Photo from getter after update:', this.userPhoto);
       }
     },
 
     async updateUserProfile(userData) {
+      console.log('Store - updateUserProfile called with:', userData);
+      
       if (this.user) {
-        // Crear un nuevo objeto para trigger reactividad
-        this.user = { ...this.user, ...userData };
-        console.log('Store - Perfil actualizado:', this.user);
+        // Crear un nuevo objeto para forzar reactividad
+        const updatedUser = { ...this.user, ...userData };
+        this.user = updatedUser;
+        console.log('Store - Profile updated:', this.user);
       }
     },
     

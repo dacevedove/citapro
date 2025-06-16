@@ -15,11 +15,13 @@
         
         <div class="dropdown">
           <button class="dropdown-toggle" @click.stop="toggleDropdown">
-            <Avatar
+            <ProfilePhoto
               :photo-url="userPhoto"
-              :name="userName"
+              :user-name="userName"
               :initials="userInitials"
               size="sm"
+              :show-initials="true"
+              :clickable="false"
             />
             <i class="dropdown-chevron fas fa-chevron-down" :class="{ 'rotated': showDropdown }"></i>
           </button>
@@ -50,12 +52,12 @@
 
 <script>
 import { useAuthStore } from '../../store/auth';
-import Avatar from './Avatar.vue';
+import ProfilePhoto from './ProfilePhoto.vue';
 
 export default {
   name: 'Navbar',
   components: {
-    Avatar
+    ProfilePhoto
   },
   data() {
     return {
@@ -74,19 +76,15 @@ export default {
       return this.authStore.userRole;
     },
     userPhoto() {
-      const photo = this.authStore.user?.foto_perfil;
-      console.log('Navbar - User photo computed:', photo);
-      return photo;
+      // Usar el getter del store para mejor reactividad
+      return this.authStore.userPhoto;
     },
     userEmail() {
       return this.authStore.user?.email || '';
     },
     userInitials() {
-      const user = this.authStore.user;
-      if (!user) return 'U';
-      const nombre = user.nombre || '';
-      const apellido = user.apellido || '';
-      return (nombre.charAt(0) + apellido.charAt(0)).toUpperCase();
+      // Usar el getter del store
+      return this.authStore.userInitials;
     },
     formatRole() {
       switch (this.userRole) {
@@ -98,16 +96,6 @@ export default {
         case 'vertice': return 'Vértice';
         default: return 'Usuario';
       }
-    }
-  },
-  watch: {
-    // Observar cambios en la foto del usuario
-    'authStore.user.foto_perfil': {
-      handler(newPhoto, oldPhoto) {
-        console.log('Navbar - Foto cambió:', { old: oldPhoto, new: newPhoto });
-        this.$forceUpdate(); // Forzar re-render del componente
-      },
-      immediate: true
     }
   },
   methods: {
@@ -135,6 +123,7 @@ export default {
   mounted() {
     console.log('Navbar mounted');
     console.log('Initial user data:', this.authStore.user);
+    console.log('User photo:', this.userPhoto);
     document.addEventListener('click', this.handleClickOutside);
   },
   beforeUnmount() {
@@ -150,7 +139,7 @@ export default {
   left: 0;
   right: 0;
   height: 60px;
-  background-color: #2c3e50;
+  background-color: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -206,14 +195,14 @@ export default {
 
 .user-name {
   font-weight: 600;
-  color: white;
+  color: rgb(35, 33, 33);
   font-size: 14px;
   line-height: 1.2;
 }
 
 .user-role {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(248, 98, 28, 0.7);
   margin-top: 2px;
   font-weight: 500;
 }

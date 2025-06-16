@@ -308,6 +308,7 @@
 
 <script>
 import axios from 'axios';
+import { useAuthStore } from '../../store/auth';
 
 export default {
   name: 'Perfil',
@@ -340,7 +341,8 @@ export default {
       showCurrentPassword: false,
       showNewPassword: false,
       showConfirmPassword: false,
-      imageError: false
+      imageError: false,
+      authStore: useAuthStore()
     }
   },
   computed: {
@@ -369,6 +371,7 @@ export default {
         
         if (response.data.success) {
           this.userData = Object.assign({}, response.data.user);
+          console.log('Perfil - Datos cargados:', this.userData);
         } else {
           this.showMessage('Error al cargar datos del perfil', 'error');
         }
@@ -423,8 +426,14 @@ export default {
         });
         
         if (response.data.success) {
+          // Actualizar datos locales
           this.userData.foto_perfil = response.data.photo_url;
           this.imageError = false;
+          
+          // *** ACTUALIZAR EL STORE CON LA NUEVA FOTO ***
+          console.log('Perfil - Actualizando store con nueva foto:', response.data.photo_url);
+          await this.authStore.updateUserPhoto(response.data.photo_url);
+          
           this.showMessage('Foto de perfil actualizada correctamente', 'success');
         } else {
           this.showMessage(response.data.error || 'Error al subir la foto', 'error');
@@ -453,7 +462,13 @@ export default {
         });
         
         if (response.data.success) {
+          // Actualizar datos locales
           this.userData.foto_perfil = null;
+          
+          // *** ACTUALIZAR EL STORE ELIMINANDO LA FOTO ***
+          console.log('Perfil - Eliminando foto del store');
+          await this.authStore.updateUserPhoto(null);
+          
           this.showMessage('Foto de perfil eliminada correctamente', 'success');
         } else {
           this.showMessage(response.data.error || 'Error al eliminar la foto', 'error');
@@ -481,6 +496,13 @@ export default {
         });
         
         if (response.data.success) {
+          // *** ACTUALIZAR EL STORE CON LOS NUEVOS DATOS ***
+          await this.authStore.updateUserProfile({
+            nombre: this.userData.nombre,
+            apellido: this.userData.apellido,
+            telefono: this.userData.telefono
+          });
+          
           this.showMessage('Datos actualizados correctamente', 'success');
         } else {
           this.showMessage(response.data.error || 'Error al actualizar datos', 'error');
@@ -611,6 +633,7 @@ export default {
   },
   
   mounted() {
+    console.log('Perfil - Componente montado');
     this.loadUserData();
   }
 }
@@ -1078,6 +1101,13 @@ h1 {
 .alert-close:hover {
   opacity: 1;
   background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* CSS Variables */
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --dark-color: #343a40;
 }
 
 /* Responsive */
