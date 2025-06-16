@@ -3,14 +3,18 @@ import axios from 'axios';
 import router from '../router';
 
 // Configurar los encabezados por defecto de axios
-axios.defaults.headers.common['Authorization'] = `Bearer ${localStorage.getItem('token')}`;
+const token = localStorage.getItem('token');
+if (token) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
     token: localStorage.getItem('token') || null,
     loading: false,
-    error: null
+    error: null,
+    initialized: false
   }),
   
   getters: {
@@ -35,11 +39,31 @@ export const useAuthStore = defineStore('auth', {
   },
   
   actions: {
+    async initialize() {
+      if (this.initialized) return;
+      
+      console.log('Auth store - Initializing...');
+      
+      if (this.token) {
+        console.log('Auth store - Token found, validating...');
+        const isValid = await this.validateToken();
+        if (!isValid) {
+          console.log('Auth store - Token invalid, logging out');
+          this.logout();
+        } else {
+          console.log('Auth store - Token valid, user loaded');
+        }
+      }
+      
+      this.initialized = true;
+    },
+    
     async login(credentials) {
       this.loading = true;
       this.error = null;
       
       try {
+        console.log('Auth store - Attempting login...');
         const response = await axios.post('/api/auth/login.php', credentials);
         
         if (response.data && response.data.token) {
@@ -51,6 +75,7 @@ export const useAuthStore = defineStore('auth', {
           // Configurar axios con el nuevo token
           axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
           
+          console.log('Login successful, user data:', this.user);
           console.log('Login successful, user photo:', this.user?.foto_perfil);
           
           // Redirigir según rol de usuario
@@ -68,18 +93,25 @@ export const useAuthStore = defineStore('auth', {
     },
     
     async validateToken() {
-      if (!this.token) return false;
+      if (!this.token) {
+        console.log('Auth store - No token to validate');
+        return false;
+      }
       
       try {
+        console.log('Auth store - Validating token...');
         const response = await axios.post('/api/auth/validate.php', null, {
           headers: { 'Authorization': `Bearer ${this.token}` }
         });
         
         if (response.data && response.data.valid) {
           this.user = response.data.user;
-          console.log('Token validated, user photo:', this.user?.foto_perfil);
+          console.log('Token validated successfully');
+          console.log('User data from validation:', this.user);
+          console.log('User photo from validation:', this.user?.foto_perfil);
           return true;
         } else {
+          console.log('Token validation failed:', response.data);
           this.logout();
           return false;
         }
@@ -92,10 +124,12 @@ export const useAuthStore = defineStore('auth', {
 
     async refreshUserData() {
       if (!this.token) {
+        console.log('Auth store - No token for refresh');
         return false;
       }
 
       try {
+        console.log('Auth store - Refreshing user data...');
         const response = await axios.get('/api/auth/update_profile.php', {
           headers: {
             'Authorization': `Bearer ${this.token}`
@@ -103,10 +137,10 @@ export const useAuthStore = defineStore('auth', {
         });
         
         if (response.data.success) {
-          // Crear un nuevo objeto completo para forzar reactividad
-          const updatedUser = { ...this.user, ...response.data.user };
-          this.user = updatedUser;
-          console.log('User data refreshed, photo:', this.user?.foto_perfil);
+          // Actualizar datos del usuario manteniendo la reactividad
+          this.user = { ...this.user, ...response.data.user };
+          console.log('User data refreshed successfully');
+          console.log('Updated user photo:', this.user?.foto_perfil);
           return true;
         }
         return false;
@@ -122,13 +156,10 @@ export const useAuthStore = defineStore('auth', {
       
       if (this.user) {
         // Crear un nuevo objeto completamente para forzar reactividad en Vue
-        const updatedUser = {
+        this.user = {
           ...this.user,
           foto_perfil: photoUrl
         };
-        
-        // Asignar el nuevo objeto
-        this.user = updatedUser;
         
         console.log('Store - User after photo update:', this.user);
         console.log('Store - Photo from getter after update:', this.userPhoto);
@@ -139,29 +170,38 @@ export const useAuthStore = defineStore('auth', {
       console.log('Store - updateUserProfile called with:', userData);
       
       if (this.user) {
-        // Crear un nuevo objeto para forzar reactividad
-        const updatedUser = { ...this.user, ...userData };
-        this.user = updatedUser;
+        // Actualizar datos manteniendo la reactividad
+        this.user = { ...this.user, ...userData };
         console.log('Store - Profile updated:', this.user);
       }
     },
     
     logout() {
+      console.log('Auth store - Logging out...');
       localStorage.removeItem('token');
       this.token = null;
       this.user = null;
+      this.initialized = false;
+      
       // Eliminar el token de los encabezados de axios
       delete axios.defaults.headers.common['Authorization'];
-      router.push('/login');
+      
+      // Solo redirigir si no estamos ya en login
+      if (router.currentRoute.value.path !== '/login') {
+        router.push('/login');
+      }
     },
 
     updateUserData(userData) {
+      console.log('Auth store - Updating user data:', userData);
       this.user = userData;
-      localStorage.setItem('user', JSON.stringify(userData));
     },
     
     redirectBasedOnRole() {
-      if (!this.user || !this.user.role) return;
+      if (!this.user || !this.user.role) {
+        console.log('Auth store - No user or role for redirect');
+        return;
+      }
       
       console.log("Redirigiendo según rol:", this.user.role);
       
@@ -169,7 +209,9 @@ export const useAuthStore = defineStore('auth', {
         'admin': '/admin/dashboard',
         'doctor': '/doctor/dashboard',
         'aseguradora': '/aseguradora/dashboard',
-        'paciente': '/paciente/dashboard'
+        'paciente': '/paciente/dashboard',
+        'coordinador': '/admin/dashboard',
+        'vertice': '/admin/dashboard'
       };
       
       const route = dashboardRoutes[this.user.role] || '/login';
