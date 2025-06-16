@@ -56,9 +56,8 @@
       <table class="doctores-table">
         <thead>
           <tr>
-            <th>Nombre</th>
+            <th>Doctor</th>
             <th>Especialidad</th>
-            <th>Subespecialidad</th>
             <th>Email</th>
             <th>Teléfono</th>
             <th>Citas Pendientes</th>
@@ -67,9 +66,31 @@
         </thead>
         <tbody>
           <tr v-for="doctor in doctores" :key="doctor.id">
-            <td>{{ doctor.nombre }} {{ doctor.apellido }}</td>
+            <td>
+              <div class="doctor-info-completa">
+                <ProfilePhoto
+                  :photo-url="doctor.foto_perfil"
+                  :user-name="doctor.nombre + ' ' + doctor.apellido"
+                  :initials="getInitials(doctor.nombre, doctor.apellido)"
+                  size="sm"
+                  :show-initials="true"
+                  :border="true"
+                  :show-role="true"
+                  user-role="doctor"
+                  @click="editarFotoDoctor(doctor)"
+                  :clickable="true"
+                  class="doctor-avatar"
+                />
+                <div class="doctor-detalles">
+                  <strong class="doctor-nombre">{{ doctor.nombre }} {{ doctor.apellido }}</strong>
+                  <small class="doctor-subespecialidad">
+                    <i class="fas fa-stethoscope"></i> 
+                    {{ doctor.subespecialidad_nombre || 'Sin subespecialidad' }}
+                  </small>
+                </div>
+              </div>
+            </td>
             <td>{{ doctor.especialidad_nombre }}</td>
-            <td>{{ doctor.subespecialidad_nombre || '-' }}</td>
             <td>{{ doctor.email }}</td>
             <td>{{ doctor.telefono }}</td>
             <td>{{ doctor.citas_pendientes || 0 }}</td>
@@ -80,6 +101,9 @@
                 </button>
                 <button @click="editarDoctor(doctor)" class="btn-icon" title="Editar">
                   <i class="fas fa-edit"></i>
+                </button>
+                <button @click="editarFotoDoctor(doctor)" class="btn-icon" title="Cambiar foto">
+                  <i class="fas fa-camera"></i>
                 </button>
               </div>
             </td>
@@ -240,13 +264,28 @@
         
         <div class="modal-body">
           <div class="doctor-info">
-            <h3>{{ doctorSeleccionado.nombre }} {{ doctorSeleccionado.apellido }}</h3>
-            <p class="doctor-especialidad">
-              {{ doctorSeleccionado.especialidad_nombre }}
-              <span v-if="doctorSeleccionado.subespecialidad_nombre">
-                - {{ doctorSeleccionado.subespecialidad_nombre }}
-              </span>
-            </p>
+            <div class="doctor-header">
+              <ProfilePhoto
+                :photo-url="doctorSeleccionado.foto_perfil"
+                :user-name="doctorSeleccionado.nombre + ' ' + doctorSeleccionado.apellido"
+                :initials="getInitials(doctorSeleccionado.nombre, doctorSeleccionado.apellido)"
+                size="lg"
+                :show-initials="true"
+                :border="true"
+                :show-role="true"
+                user-role="doctor"
+                class="detail-profile-photo"
+              />
+              <div class="doctor-text-info">
+                <h3>{{ doctorSeleccionado.nombre }} {{ doctorSeleccionado.apellido }}</h3>
+                <p class="doctor-especialidad">
+                  {{ doctorSeleccionado.especialidad_nombre }}
+                  <span v-if="doctorSeleccionado.subespecialidad_nombre">
+                    - {{ doctorSeleccionado.subespecialidad_nombre }}
+                  </span>
+                </p>
+              </div>
+            </div>
             
             <div class="info-section">
               <div class="info-row">
@@ -282,14 +321,82 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal para cambiar foto de doctor -->
+    <div v-if="mostrarModalFoto" class="modal-overlay">
+      <div class="modal-container modal-small">
+        <div class="modal-header">
+          <h2>Cambiar Foto del Doctor</h2>
+          <button @click="cerrarModalFoto" class="close-btn">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="quick-photo-edit">
+            <div class="user-info-quick">
+              <ProfilePhoto
+                :photo-url="doctorFoto.foto_perfil"
+                :user-name="doctorFoto.nombre + ' ' + doctorFoto.apellido"
+                :initials="getInitials(doctorFoto.nombre, doctorFoto.apellido)"
+                size="lg"
+                :show-initials="true"
+                :border="true"
+                :show-role="true"
+                user-role="doctor"
+              />
+              <h4>{{ doctorFoto.nombre }} {{ doctorFoto.apellido }}</h4>
+            </div>
+            
+            <div class="quick-actions">
+              <label for="quick-photo-upload" class="btn btn-primary btn-block">
+                <i class="fas fa-camera"></i>
+                {{ doctorFoto.foto_perfil ? 'Cambiar Foto' : 'Subir Foto' }}
+              </label>
+              <input 
+                type="file" 
+                id="quick-photo-upload" 
+                accept="image/*" 
+                @change="handlePhotoUpload"
+                style="display: none;"
+              >
+              
+              <button 
+                v-if="doctorFoto.foto_perfil" 
+                @click="eliminarFotoDoctor" 
+                class="btn btn-outline btn-block"
+                :disabled="uploadingPhoto"
+              >
+                <i class="fas fa-trash"></i>
+                Eliminar Foto
+              </button>
+            </div>
+            
+            <!-- Progress bar -->
+            <div v-if="uploadingPhoto" class="upload-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" :style="{width: uploadProgress + '%'}"></div>
+              </div>
+              <span class="progress-text">{{ uploadProgress }}%</span>
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button type="button" @click="cerrarModalFoto" class="btn btn-outline">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+import ProfilePhoto from '../Shared/ProfilePhoto.vue';
 
 export default {
   name: 'Doctores',
+  components: {
+    ProfilePhoto
+  },
   data() {
     return {
       doctores: [],
@@ -298,10 +405,19 @@ export default {
       cargando: false,
       mostrarModal: false,
       mostrarModalDetalles: false,
+      mostrarModalFoto: false,
       editando: false,
       guardando: false,
+      uploadingPhoto: false,
+      uploadProgress: 0,
       error: null,
       doctorSeleccionado: {},
+      doctorFoto: {
+        id: null,
+        nombre: '',
+        apellido: '',
+        foto_perfil: null
+      },
       doctorForm: {
         nombre: '',
         apellido: '',
@@ -334,6 +450,146 @@ export default {
     this.cargarDoctores();
   },
   methods: {
+    getInitials(nombre, apellido) {
+      const n = (nombre || '').charAt(0).toUpperCase();
+      const a = (apellido || '').charAt(0).toUpperCase();
+      return n + a || 'D';
+    },
+
+    // Gestión de fotos
+    editarFotoDoctor(doctor) {
+      this.doctorFoto = {
+        id: doctor.id,
+        nombre: doctor.nombre,
+        apellido: doctor.apellido,
+        foto_perfil: doctor.foto_perfil
+      };
+      this.mostrarModalFoto = true;
+    },
+
+    cerrarModalFoto() {
+      this.mostrarModalFoto = false;
+    },
+
+    async handlePhotoUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      if (!this.validarArchivo(file)) {
+        event.target.value = '';
+        return;
+      }
+      
+      await this.subirFotoDoctor(file, this.doctorFoto.id);
+      event.target.value = '';
+    },
+
+    validarArchivo(file) {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        this.error = 'Tipo de archivo no permitido. Solo se permiten imágenes (JPEG, PNG, GIF, WebP)';
+        setTimeout(() => { this.error = null; }, 5000);
+        return false;
+      }
+      
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        this.error = 'El archivo es demasiado grande. Tamaño máximo: 5MB';
+        setTimeout(() => { this.error = null; }, 5000);
+        return false;
+      }
+      
+      return true;
+    },
+
+    async subirFotoDoctor(file, doctorId) {
+      this.uploadingPhoto = true;
+      this.uploadProgress = 0;
+      this.error = null;
+      
+      try {
+        const formData = new FormData();
+        formData.append('photo', file);
+        formData.append('doctor_id', doctorId);
+        
+        const token = localStorage.getItem('token');
+        const response = await axios.post('/api/doctores/upload_doctor_photo.php', formData, {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress: (progressEvent) => {
+            this.uploadProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          }
+        });
+        
+        if (response.data.success) {
+          const nuevaFotoUrl = response.data.photo_url;
+          this.actualizarFotoEnTodosLados(doctorId, nuevaFotoUrl);
+          alert('Foto del doctor actualizada correctamente');
+        } else {
+          this.error = response.data.error || 'Error al subir la foto';
+        }
+      } catch (error) {
+        console.error('Error al subir foto:', error);
+        this.error = error.response?.data?.error || 'Error al subir la foto';
+      } finally {
+        this.uploadingPhoto = false;
+        this.uploadProgress = 0;
+      }
+    },
+
+    async eliminarFotoDoctor() {
+      if (!confirm('¿Está seguro de que desea eliminar la foto de este doctor?')) {
+        return;
+      }
+      
+      this.uploadingPhoto = true;
+      this.error = null;
+      
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.delete('/api/doctores/delete_doctor_photo.php', {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          },
+          data: {
+            doctor_id: this.doctorFoto.id
+          }
+        });
+        
+        if (response.data.success) {
+          this.actualizarFotoEnTodosLados(this.doctorFoto.id, null);
+          alert('Foto del doctor eliminada correctamente');
+        } else {
+          this.error = response.data.error || 'Error al eliminar la foto';
+        }
+      } catch (error) {
+        console.error('Error al eliminar foto:', error);
+        this.error = error.response?.data?.error || 'Error al eliminar la foto';
+      } finally {
+        this.uploadingPhoto = false;
+      }
+    },
+
+    actualizarFotoEnTodosLados(doctorId, nuevaFotoUrl) {
+      // Actualizar en la lista de doctores
+      const doctorEnLista = this.doctores.find(d => d.id == doctorId);
+      if (doctorEnLista) {
+        doctorEnLista.foto_perfil = nuevaFotoUrl;
+      }
+      
+      // Actualizar en doctorSeleccionado si es el mismo
+      if (this.doctorSeleccionado.id == doctorId) {
+        this.doctorSeleccionado.foto_perfil = nuevaFotoUrl;
+      }
+      
+      // Actualizar en doctorFoto si es el mismo
+      if (this.doctorFoto.id == doctorId) {
+        this.doctorFoto.foto_perfil = nuevaFotoUrl;
+      }
+    },
+
     async cargarEspecialidades() {
       try {
         const token = localStorage.getItem('token');
@@ -629,8 +885,82 @@ h1 {
   overflow-x: auto;
 }
 
-.text-center {
-  text-align: center;
+/* Información del doctor con avatar */
+.doctor-info-completa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+}
+
+.doctor-info-completa:hover .doctor-avatar {
+  transform: scale(1.05);
+}
+
+.doctor-detalles {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.doctor-nombre {
+  display: block;
+  font-weight: 500;
+  color: var(--dark-color);
+  margin-bottom: 4px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-subespecialidad {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--secondary-color);
+  font-size: 12px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-subespecialidad i {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* Modal de detalles con avatar */
+.doctor-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.detail-profile-photo {
+  flex-shrink: 0;
+}
+
+.doctor-text-info {
+  flex: 1;
+}
+
+.doctor-text-info h3 {
+  margin: 0 0 8px 0;
+  color: var(--dark-color);
+  font-size: 24px;
+}
+
+.doctor-especialidad {
+  color: var(--primary-color);
+  font-weight: 500;
+  margin: 0;
+  font-size: 16px;
 }
 
 .action-buttons {
@@ -723,6 +1053,10 @@ h1 {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+.modal-small {
+  max-width: 500px;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -791,6 +1125,16 @@ h1 {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  border: none;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-block {
+  width: 100%;
 }
 
 .btn-primary {
@@ -810,18 +1154,6 @@ h1 {
   cursor: not-allowed;
 }
 
-/* Doctor details */
-.doctor-info h3 {
-  margin: 0 0 5px 0;
-  color: var(--dark-color);
-}
-
-.doctor-especialidad {
-  color: var(--primary-color);
-  font-weight: 500;
-  margin-bottom: 20px;
-}
-
 .info-section {
   background-color: #f8f9fa;
   border-radius: 8px;
@@ -839,8 +1171,102 @@ h1 {
   color: var(--dark-color);
 }
 
+/* Gestión de fotos */
+.quick-photo-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-info-quick {
+  text-align: center;
+}
+
+.user-info-quick h4 {
+  margin-top: 10px;
+  margin-bottom: 0;
+  color: var(--dark-color);
+}
+
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 250px;
+}
+
+/* Progress bar para uploads */
+.upload-progress {
+  width: 100%;
+  max-width: 300px;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: var(--secondary-color);
+  font-weight: 500;
+}
+
+/* CSS Variables */
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --dark-color: #343a40;
+}
+
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
+  .doctores-table th,
+  .doctores-table td {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 3px;
+  }
+  
+  .btn-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (max-width: 992px) {
+  .doctor-info-completa {
+    min-width: 160px;
+    gap: 10px;
+  }
+
+  .doctor-subespecialidad {
+    font-size: 11px;
+  }
+
+  .doctor-nombre {
+    font-size: 13px;
+  }
+
   .form-row {
     flex-direction: column;
     gap: 0;
@@ -850,5 +1276,160 @@ h1 {
     flex-direction: column;
     align-items: stretch;
   }
+  
+  .doctor-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 15px;
+  }
+}
+
+@media (max-width: 768px) {
+  .doctor-info-completa {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 120px;
+  }
+
+  .doctor-detalles { 
+    width: 100%; 
+  }
+
+  .doctor-nombre { 
+    font-size: 12px; 
+  }
+
+  .doctor-subespecialidad { 
+    font-size: 10px; 
+  }
+
+  .doctores-container {
+    padding: 10px;
+  }
+  
+  .doctores-table {
+    font-size: 12px;
+  }
+  
+  .doctores-table th,
+  .doctores-table td {
+    padding: 6px 8px;
+  }
+  
+  .action-buttons {
+    flex-direction: row;
+    gap: 2px;
+  }
+  
+  .btn-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+  }
+  
+  .modal-container {
+    width: 95%;
+    max-width: none;
+    max-height: 95vh;
+  }
+  
+  .modal-body {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 576px) {
+  .doctor-info-completa {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    min-width: 140px;
+  }
+
+  .table-responsive {
+    overflow-x: scroll;
+  }
+  
+  .doctores-table {
+    min-width: 800px;
+  }
+  
+  .search-box {
+    flex-direction: column;
+  }
+  
+  .search-box input {
+    border-radius: 4px 4px 0 0;
+  }
+  
+  .search-btn {
+    border-radius: 0 0 4px 4px;
+  }
+  
+  .header-section {
+    text-align: center;
+  }
+  
+  .quick-actions {
+    max-width: 200px;
+  }
+}
+
+/* Animaciones para mejorar UX */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-container {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.doctor-avatar {
+  transition: all 0.2s ease;
+}
+
+.doctor-avatar:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Tooltips para botones */
+.btn-icon[title] {
+  position: relative;
+}
+
+.btn-icon[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1000; 
+  margin-bottom: 5px;
+}
+
+.btn-icon[title]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #333;
+  z-index: 1000;
 }
 </style>
