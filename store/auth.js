@@ -15,7 +15,19 @@ export const useAuthStore = defineStore('auth', {
   
   getters: {
     isAuthenticated: (state) => !!state.token && !!state.user,
-    userRole: (state) => state.user ? state.user.role : null
+    userRole: (state) => state.user ? state.user.role : null,
+    userName: (state) => {
+      if (!state.user) return '';
+      return `${state.user.nombre} ${state.user.apellido}`;
+    },
+    userInitials: (state) => {
+      if (!state.user) return 'U';
+      const nombre = state.user.nombre || '';
+      const apellido = state.user.apellido || '';
+      return (nombre.charAt(0) + apellido.charAt(0)).toUpperCase();
+    },
+    userPhoto: (state) => state.user?.foto_perfil || null,
+    userEmail: (state) => state.user?.email || ''
   },
   
   actions: {
@@ -70,6 +82,42 @@ export const useAuthStore = defineStore('auth', {
         return false;
       }
     },
+
+    async refreshUserData() {
+      if (!this.token) {
+        return false;
+      }
+
+      try {
+        const response = await axios.get('/api/auth/update_profile.php', {
+          headers: {
+            'Authorization': `Bearer ${this.token}`
+          }
+        });
+        
+        if (response.data.success) {
+          // Actualizar solo los datos del usuario, mantener el token
+          this.user = { ...this.user, ...response.data.user };
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error('Error refrescando datos del usuario:', error);
+        return false;
+      }
+    },
+
+    async updateUserPhoto(photoUrl) {
+      if (this.user) {
+        this.user.foto_perfil = photoUrl;
+      }
+    },
+
+    async updateUserProfile(userData) {
+      if (this.user) {
+        this.user = { ...this.user, ...userData };
+      }
+    },
     
     logout() {
       localStorage.removeItem('token');
@@ -101,6 +149,10 @@ export const useAuthStore = defineStore('auth', {
       
       // Usar navegación con reemplazo para evitar historiales extraños
       router.replace(route);
+    },
+
+    clearError() {
+      this.error = null;
     }
   }
 });
