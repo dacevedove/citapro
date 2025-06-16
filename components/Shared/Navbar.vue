@@ -96,21 +96,27 @@ export default {
       return useAuthStore();
     },
     userName() {
-      return this.authStore.user ? `${this.authStore.user.nombre} ${this.authStore.user.apellido}` : 'Usuario';
+      // Forzar reactividad accediendo directamente al store
+      const user = this.authStore.user;
+      return user ? `${user.nombre} ${user.apellido}` : 'Usuario';
     },
     userRole() {
       return this.authStore.userRole;
     },
     userPhoto() {
-      return this.authStore.user?.foto_perfil;
+      // Forzar reactividad y debug
+      const photo = this.authStore.user?.foto_perfil;
+      console.log('Navbar - User photo computed:', photo);
+      return photo;
     },
     userEmail() {
       return this.authStore.user?.email || '';
     },
     userInitials() {
-      if (!this.authStore.user) return 'U';
-      const nombre = this.authStore.user.nombre || '';
-      const apellido = this.authStore.user.apellido || '';
+      const user = this.authStore.user;
+      if (!user) return 'U';
+      const nombre = user.nombre || '';
+      const apellido = user.apellido || '';
       return (nombre.charAt(0) + apellido.charAt(0)).toUpperCase();
     },
     formatRole() {
