@@ -77,8 +77,6 @@
                   :border="true"
                   :show-role="true"
                   user-role="doctor"
-                  @click="editarFotoDoctor(doctor)"
-                  :clickable="true"
                   class="doctor-avatar"
                 />
                 <div class="doctor-detalles">
