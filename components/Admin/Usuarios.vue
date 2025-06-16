@@ -31,7 +31,7 @@
             <option value="doctor">Doctor</option>
             <option value="aseguradora">Aseguradora</option>
             <option value="paciente">Paciente</option>
-            <option value="coordinador">Coordindor</option>
+            <option value="coordinador">Coordinador</option>
             <option value="vertice">Vértice</option>
           </select>
         </div>
@@ -68,18 +68,31 @@
       <table class="usuarios-table">
         <thead>
           <tr>
+            <th>Foto</th>
             <th>Usuario</th>
             <th>Email</th>
             <th>Cédula</th>
             <th>Rol</th>
             <th>Estado</th>
             <th>Último Acceso</th>
-            <th>Información Adicional</th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="usuario in usuarios" :key="usuario.id">
+            <td>
+              <ProfilePhoto
+                :photo-url="usuario.foto_perfil"
+                :user-name="usuario.nombre + ' ' + usuario.apellido"
+                :initials="getInitials(usuario.nombre, usuario.apellido)"
+                size="sm"
+                :show-initials="true"
+                :border="true"
+                @click="editarFotoUsuario(usuario)"
+                :clickable="true"
+                class="table-photo"
+              />
+            </td>
             <td>
               <div class="usuario-info">
                 <strong>{{ usuario.nombre }} {{ usuario.apellido }}</strong>
@@ -98,12 +111,14 @@
                 {{ usuario.esta_activo ? 'Activo' : 'Inactivo' }}
               </span>
             </td>
-            <td>{{ usuario.ultimo_acceso }}</td>
-            <td>{{ usuario.info_adicional || '-' }}</td>
+            <td>{{ formatDate(usuario.ultimo_acceso) }}</td>
             <td>
               <div class="action-buttons">
                 <button @click="editarUsuario(usuario)" class="btn-icon" title="Editar usuario">
                   <i class="fas fa-user-cog"></i>
+                </button>
+                <button @click="editarFotoUsuario(usuario)" class="btn-icon" title="Cambiar foto">
+                  <i class="fas fa-camera"></i>
                 </button>
                 <button 
                   @click="toggleEstadoUsuario(usuario)" 
@@ -200,7 +215,7 @@
                 <option value="doctor">Doctor</option>
                 <option value="aseguradora">Aseguradora</option>
                 <option value="paciente">Paciente</option>
-                <option value="paciente">Coordinador</option>
+                <option value="coordinador">Coordinador</option>
                 <option value="vertice">Vértice</option>
               </select>
             </div>
@@ -263,8 +278,19 @@
         
         <div class="modal-body">
           <div class="usuario-info-edit">
-            <h3>{{ usuarioEdit.nombre }} {{ usuarioEdit.apellido }}</h3>
-            <p>{{ usuarioEdit.email }} - {{ usuarioEdit.cedula }}</p>
+            <ProfilePhoto
+              :photo-url="usuarioEdit.foto_perfil"
+              :user-name="usuarioEdit.nombre + ' ' + usuarioEdit.apellido"
+              :initials="getInitials(usuarioEdit.nombre, usuarioEdit.apellido)"
+              size="lg"
+              :show-initials="true"
+              :border="true"
+              class="edit-profile-photo"
+            />
+            <div class="usuario-text-info">
+              <h3>{{ usuarioEdit.nombre }} {{ usuarioEdit.apellido }}</h3>
+              <p>{{ usuarioEdit.email }} - {{ usuarioEdit.cedula }}</p>
+            </div>
           </div>
           
           <!-- Tabs para diferentes tipos de edición -->
@@ -274,6 +300,12 @@
               @click="tipoEdicion = 'datos'"
             >
               Datos Básicos
+            </button>
+            <button 
+              :class="['tab-btn', tipoEdicion === 'foto' ? 'active' : '']" 
+              @click="tipoEdicion = 'foto'"
+            >
+              Foto de Perfil
             </button>
             <button 
               :class="['tab-btn', tipoEdicion === 'email' ? 'active' : '']" 
@@ -373,6 +405,65 @@
                 </button>
               </div>
             </form>
+          </div>
+
+          <!-- Gestión de Foto de Perfil -->
+          <div v-if="tipoEdicion === 'foto'" class="photo-edit-section">
+            <div class="current-photo-display">
+              <h4>Foto Actual</h4>
+              <ProfilePhoto
+                :photo-url="usuarioEdit.foto_perfil"
+                :user-name="usuarioEdit.nombre + ' ' + usuarioEdit.apellido"
+                :initials="getInitials(usuarioEdit.nombre, usuarioEdit.apellido)"
+                size="xl"
+                :show-initials="true"
+                :border="true"
+                class="large-profile-photo"
+              />
+            </div>
+            
+            <div class="photo-actions-admin">
+              <div class="upload-section">
+                <label for="admin-photo-upload" class="btn btn-primary">
+                  <i class="fas fa-camera"></i>
+                  {{ usuarioEdit.foto_perfil ? 'Cambiar Foto' : 'Subir Foto' }}
+                </label>
+                <input 
+                  type="file" 
+                  id="admin-photo-upload" 
+                  accept="image/*" 
+                  @change="handleAdminPhotoUpload"
+                  style="display: none;"
+                >
+              </div>
+              
+              <div v-if="usuarioEdit.foto_perfil" class="delete-section">
+                <button 
+                  @click="eliminarFotoUsuario" 
+                  class="btn btn-danger"
+                  :disabled="uploadingPhoto"
+                >
+                  <i class="fas fa-trash"></i>
+                  Eliminar Foto
+                </button>
+              </div>
+            </div>
+            
+            <!-- Progress bar para upload -->
+            <div v-if="uploadingPhoto" class="upload-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" :style="{width: uploadProgress + '%'}"></div>
+              </div>
+              <span class="progress-text">Subiendo... {{ uploadProgress }}%</span>
+            </div>
+            
+            <div class="photo-info">
+              <small><i class="fas fa-info-circle"></i> JPG, PNG, WebP • Máx. 5MB</small>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" @click="cerrarModalEditar" class="btn btn-outline">Cerrar</button>
+            </div>
           </div>
           
           <!-- Cambiar Email -->
@@ -479,36 +570,18 @@
               
               <div v-else-if="logsUsuario.length === 0" class="empty-logs">
                 <p>No hay cambios registrados para este usuario.</p>
-                <button @click="verificarLogsDebug" class="btn btn-sm btn-outline">
-                  <i class="fas fa-bug"></i> Verificar Debug
-                </button>
               </div>
               
               <div v-else class="logs-list">
                 <div v-for="log in logsUsuario" :key="log.id" class="log-item">
                   <div class="log-header">
-                    <span class="log-fecha">{{ log.fecha_accion }}</span>
+                    <span class="log-fecha">{{ formatDate(log.fecha_accion) }}</span>
                     <span class="log-accion">{{ formatAccion(log.accion) }}</span>
                   </div>
                   <div class="log-body">
                     <p class="log-admin"><strong>Administrador:</strong> {{ log.admin_completo }}</p>
                     <p class="log-cambios"><strong>Detalles:</strong> {{ log.resumen_cambios }}</p>
                     <p v-if="log.direccion_ip" class="log-ip"><strong>Desde IP:</strong> {{ log.direccion_ip }}</p>
-                    
-                    <!-- Detalles expandibles -->
-                    <details class="log-details">
-                      <summary>Ver datos técnicos</summary>
-                      <div class="log-technical">
-                        <div v-if="log.datos_anteriores" class="log-data">
-                          <strong>Datos anteriores:</strong>
-                          <pre>{{ JSON.stringify(log.datos_anteriores, null, 2) }}</pre>
-                        </div>
-                        <div v-if="log.datos_nuevos" class="log-data">
-                          <strong>Datos nuevos:</strong>
-                          <pre>{{ JSON.stringify(log.datos_nuevos, null, 2) }}</pre>
-                        </div>
-                      </div>
-                    </details>
                   </div>
                 </div>
               </div>
@@ -525,22 +598,91 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal rápido para cambiar foto -->
+    <div v-if="mostrarModalFoto" class="modal-overlay">
+      <div class="modal-container modal-small">
+        <div class="modal-header">
+          <h2>Cambiar Foto de Perfil</h2>
+          <button @click="cerrarModalFoto" class="close-btn">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="quick-photo-edit">
+            <div class="user-info-quick">
+              <ProfilePhoto
+                :photo-url="usuarioFoto.foto_perfil"
+                :user-name="usuarioFoto.nombre + ' ' + usuarioFoto.apellido"
+                :initials="getInitials(usuarioFoto.nombre, usuarioFoto.apellido)"
+                size="lg"
+                :show-initials="true"
+                :border="true"
+              />
+              <h4>{{ usuarioFoto.nombre }} {{ usuarioFoto.apellido }}</h4>
+            </div>
+            
+            <div class="quick-actions">
+              <label for="quick-photo-upload" class="btn btn-primary btn-block">
+                <i class="fas fa-camera"></i>
+                {{ usuarioFoto.foto_perfil ? 'Cambiar Foto' : 'Subir Foto' }}
+              </label>
+              <input 
+                type="file" 
+                id="quick-photo-upload" 
+                accept="image/*" 
+                @change="handleQuickPhotoUpload"
+                style="display: none;"
+              >
+              
+              <button 
+                v-if="usuarioFoto.foto_perfil" 
+                @click="eliminarFotoRapido" 
+                class="btn btn-outline btn-block"
+                :disabled="uploadingPhoto"
+              >
+                <i class="fas fa-trash"></i>
+                Eliminar Foto
+              </button>
+            </div>
+            
+            <!-- Progress bar -->
+            <div v-if="uploadingPhoto" class="upload-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" :style="{width: uploadProgress + '%'}"></div>
+              </div>
+              <span class="progress-text">{{ uploadProgress }}%</span>
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button type="button" @click="cerrarModalFoto" class="btn btn-outline">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
 import { useAuthStore } from '../../store/auth';
+import ProfilePhoto from '../Shared/ProfilePhoto.vue';
 
 export default {
   name: 'Usuarios',
+  components: {
+    ProfilePhoto
+  },
   data() {
     return {
       usuarios: [],
       cargando: false,
       mostrarModalNuevo: false,
       mostrarModalEditar: false,
+      mostrarModalFoto: false,
       guardando: false,
+      uploadingPhoto: false,
+      uploadProgress: 0,
       error: null,
       filtros: {
         busqueda: '',
@@ -566,7 +708,14 @@ export default {
         cedula: '',
         telefono: '',
         role: '',
-        esta_activo: true
+        esta_activo: true,
+        foto_perfil: null
+      },
+      usuarioFoto: {
+        id: null,
+        nombre: '',
+        apellido: '',
+        foto_perfil: null
       },
       tipoEdicion: 'datos',
       nuevoEmail: '',
@@ -589,6 +738,196 @@ export default {
     this.cargarUsuarios();
   },
   methods: {
+    getInitials(nombre, apellido) {
+      const n = (nombre || '').charAt(0).toUpperCase();
+      const a = (apellido || '').charAt(0).toUpperCase();
+      return n + a || 'U';
+    },
+
+    formatDate(dateString) {
+      if (!dateString) return '-';
+      try {
+        return new Date(dateString).toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch {
+        return dateString;
+      }
+    },
+
+    // Modal de foto rápido
+    editarFotoUsuario(usuario) {
+      this.usuarioFoto = {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        foto_perfil: usuario.foto_perfil
+      };
+      this.mostrarModalFoto = true;
+    },
+
+    cerrarModalFoto() {
+      this.mostrarModalFoto = false;
+    },
+
+    async handleQuickPhotoUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      if (!this.validarArchivo(file)) {
+        event.target.value = '';
+        return;
+      }
+      
+      await this.subirFotoUsuario(file, this.usuarioFoto.id);
+      event.target.value = '';
+    },
+
+    async handleAdminPhotoUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      if (!this.validarArchivo(file)) {
+        event.target.value = '';
+        return;
+      }
+      
+      await this.subirFotoUsuario(file, this.usuarioEdit.id);
+      event.target.value = '';
+    },
+
+    validarArchivo(file) {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        this.error = 'Tipo de archivo no permitido. Solo se permiten imágenes (JPEG, PNG, GIF, WebP)';
+        setTimeout(() => { this.error = null; }, 5000);
+        return false;
+      }
+      
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        this.error = 'El archivo es demasiado grande. Tamaño máximo: 5MB';
+        setTimeout(() => { this.error = null; }, 5000);
+        return false;
+      }
+      
+      return true;
+    },
+
+    async subirFotoUsuario(file, userId) {
+      this.uploadingPhoto = true;
+      this.uploadProgress = 0;
+      this.error = null;
+      
+      try {
+        const formData = new FormData();
+        formData.append('photo', file);
+        formData.append('user_id', userId);
+        
+        const token = localStorage.getItem('token');
+        const response = await axios.post('/api/usuarios/upload_user_photo.php', formData, {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress: (progressEvent) => {
+            this.uploadProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          }
+        });
+        
+        if (response.data.success) {
+          const nuevaFotoUrl = response.data.photo_url;
+          
+          // Actualizar en todos los lugares necesarios
+          this.actualizarFotoEnTodosLados(userId, nuevaFotoUrl);
+          
+          alert('Foto de perfil actualizada correctamente');
+        } else {
+          this.error = response.data.error || 'Error al subir la foto';
+        }
+      } catch (error) {
+        console.error('Error al subir foto:', error);
+        this.error = error.response?.data?.error || 'Error al subir la foto';
+      } finally {
+        this.uploadingPhoto = false;
+        this.uploadProgress = 0;
+      }
+    },
+
+    async eliminarFotoRapido() {
+      if (!confirm('¿Está seguro de que desea eliminar la foto de perfil de este usuario?')) {
+        return;
+      }
+      
+      await this.eliminarFotoUsuarioInterno(this.usuarioFoto.id);
+    },
+
+    async eliminarFotoUsuario() {
+      if (!confirm('¿Está seguro de que desea eliminar la foto de perfil de este usuario?')) {
+        return;
+      }
+      
+      await this.eliminarFotoUsuarioInterno(this.usuarioEdit.id);
+    },
+
+    async eliminarFotoUsuarioInterno(userId) {
+      this.uploadingPhoto = true;
+      this.error = null;
+      
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.delete('/api/usuarios/delete_user_photo.php', {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          },
+          data: {
+            user_id: userId
+          }
+        });
+        
+        if (response.data.success) {
+          // Actualizar en todos los lugares necesarios
+          this.actualizarFotoEnTodosLados(userId, null);
+          
+          alert('Foto de perfil eliminada correctamente');
+        } else {
+          this.error = response.data.error || 'Error al eliminar la foto';
+        }
+      } catch (error) {
+        console.error('Error al eliminar foto:', error);
+        this.error = error.response?.data?.error || 'Error al eliminar la foto';
+      } finally {
+        this.uploadingPhoto = false;
+      }
+    },
+
+    actualizarFotoEnTodosLados(userId, nuevaFotoUrl) {
+      // Actualizar en la lista de usuarios
+      const usuarioEnLista = this.usuarios.find(u => u.id == userId);
+      if (usuarioEnLista) {
+        usuarioEnLista.foto_perfil = nuevaFotoUrl;
+      }
+      
+      // Actualizar en usuarioEdit si es el mismo
+      if (this.usuarioEdit.id == userId) {
+        this.usuarioEdit.foto_perfil = nuevaFotoUrl;
+      }
+      
+      // Actualizar en usuarioFoto si es el mismo
+      if (this.usuarioFoto.id == userId) {
+        this.usuarioFoto.foto_perfil = nuevaFotoUrl;
+      }
+      
+      // Si es el usuario actual logueado, actualizar el store también
+      if (this.currentUserId == userId) {
+        this.authStore.updateUserPhoto(nuevaFotoUrl);
+      }
+    },
+
     async cargarUsuarios() {
       this.cargando = true;
       
@@ -666,7 +1005,8 @@ export default {
         cedula: usuario.cedula,
         telefono: usuario.telefono || '',
         role: usuario.role,
-        esta_activo: usuario.esta_activo
+        esta_activo: usuario.esta_activo,
+        foto_perfil: usuario.foto_perfil
       };
       this.tipoEdicion = 'datos';
       this.nuevoEmail = '';
@@ -770,53 +1110,25 @@ export default {
       try {
         const token = localStorage.getItem('token');
         
-        console.log('=== CAMBIO DE EMAIL ===');
-        console.log('Usuario ID:', this.usuarioEdit.id);
-        console.log('Email actual:', this.usuarioEdit.email);
-        console.log('Nuevo email:', this.nuevoEmail);
-        
-        const requestData = {
+        const response = await axios.post('/api/usuarios/editar_usuario.php', {
           user_id: this.usuarioEdit.id,
           accion: 'cambiar_email',
           nuevo_email: this.nuevoEmail
-        };
-        
-        console.log('Datos de request:', requestData);
-        
-        const response = await axios.post('/api/usuarios/editar_usuario.php', requestData, {
+        }, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        console.log('Respuesta del servidor:', response.data);
         
         if (response.data && response.data.success) {
           this.usuarioEdit.email = this.nuevoEmail;
           this.nuevoEmail = '';
           this.cargarUsuarios();
           alert('Email cambiado correctamente');
-          
-          // Actualizar logs automáticamente
-          if (this.tipoEdicion === 'logs') {
-            setTimeout(() => {
-              this.cargarLogsUsuario();
-            }, 1000);
-          }
         } else {
           this.error = response.data.error || 'Error desconocido';
         }
       } catch (error) {
-        console.error('=== ERROR EN CAMBIO DE EMAIL ===');
-        console.error('Error completo:', error);
-        console.error('Response status:', error.response?.status);
-        console.error('Response data:', error.response?.data);
-        
-        if (error.response?.data?.error) {
-          this.error = error.response.data.error;
-        } else if (error.response?.status === 500) {
-          this.error = "Error interno del servidor. Revise los logs del servidor.";
-        } else {
-          this.error = "Error al cambiar email. Intente nuevamente.";
-        }
+        console.error('Error al cambiar email:', error);
+        this.error = error.response?.data?.error || "Error al cambiar email.";
       } finally {
         this.guardando = false;
       }
@@ -904,124 +1216,20 @@ export default {
         const token = localStorage.getItem('token');
         const url = `/api/usuarios/logs_auditoria.php?usuario_id=${this.usuarioEdit.id}&limite=50`;
         
-        console.log('=== CARGANDO LOGS DE USUARIO ===');
-        console.log('Usuario ID:', this.usuarioEdit.id);
-        console.log('URL:', url);
-        
         const response = await axios.get(url, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        console.log('Response status:', response.status);
-        console.log('Response data:', response.data);
-        
         if (Array.isArray(response.data)) {
           this.logsUsuario = response.data;
-          console.log('Logs cargados:', this.logsUsuario.length);
-          
-          if (this.logsUsuario.length > 0) {
-            console.log('Primer log:', this.logsUsuario[0]);
-            
-            // Log detallado de cada registro
-            this.logsUsuario.forEach((log, index) => {
-              console.log(`Log ${index + 1}:`, {
-                id: log.id,
-                accion: log.accion,
-                fecha: log.fecha_accion,
-                admin: log.admin_completo,
-                resumen: log.resumen_cambios,
-                datos_anteriores: log.datos_anteriores,
-                datos_nuevos: log.datos_nuevos
-              });
-            });
-          }
         } else {
-          console.error('Response data is not an array:', response.data);
           this.logsUsuario = [];
         }
-        
-        if (this.logsUsuario.length === 0) {
-          console.log('No se encontraron logs para este usuario');
-        }
       } catch (error) {
-        console.error('=== ERROR AL CARGAR LOGS ===');
-        console.error('Error completo:', error);
-        console.error('Response status:', error.response?.status);
-        console.error('Response data:', error.response?.data);
-        console.error('Response headers:', error.response?.headers);
-        
+        console.error('Error al cargar logs:', error);
         this.logsUsuario = [];
-        
-        if (error.response?.status === 500) {
-          console.error('Error 500 - Revisar logs del servidor');
-        } else if (error.response?.status === 401) {
-          console.error('Error 401 - Token expirado o inválido');
-        } else if (error.response?.status === 403) {
-          console.error('Error 403 - Sin permisos');
-        }
       } finally {
         this.cargandoLogs = false;
-      }
-    },
-    
-    async verificarLogsDebug() {
-      try {
-        const token = localStorage.getItem('token');
-        
-        console.log('=== VERIFICACIÓN DEBUG DE LOGS ===');
-        
-        // Primero obtener todos los logs sin filtro
-        const responseAll = await axios.get('/api/usuarios/logs_auditoria.php?limite=100', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        console.log('Total logs en sistema:', responseAll.data?.length || 0);
-        
-        if (responseAll.data && responseAll.data.length > 0) {
-          // Filtrar logs del usuario actual
-          const logsDelUsuario = responseAll.data.filter(log => 
-            log.registro_id == this.usuarioEdit.id
-          );
-          
-          console.log(`Logs del usuario ${this.usuarioEdit.id}:`, logsDelUsuario.length);
-          
-          logsDelUsuario.forEach((log, index) => {
-            console.log(`Log encontrado ${index + 1}:`, {
-              id: log.id,
-              accion: log.accion,
-              registro_id: log.registro_id,
-              usuario_id: log.usuario_id,
-              fecha: log.fecha_accion,
-              resumen: log.resumen_cambios
-            });
-          });
-          
-          // Verificar logs de cambio de email específicamente
-          const logsEmail = logsDelUsuario.filter(log => 
-            log.accion === 'UPDATE_EMAIL'
-          );
-          
-          console.log('Logs de cambio de email:', logsEmail.length);
-          logsEmail.forEach((log, index) => {
-            console.log(`Log email ${index + 1}:`, log);
-          });
-          
-          // Si hay logs pero no se muestran, hay un problema en el filtrado
-          if (logsDelUsuario.length > 0 && this.logsUsuario.length === 0) {
-            console.warn('⚠️ HAY LOGS PERO NO SE MUESTRAN - Problema en el filtrado');
-            alert(`Se encontraron ${logsDelUsuario.length} logs en el sistema pero no se muestran en la interfaz. Revisar filtrado por usuario_id.`);
-          }
-        }
-        
-        // Verificar también la consulta específica que usa el frontend
-        const responseSpecific = await axios.get(`/api/usuarios/logs_auditoria.php?usuario_id=${this.usuarioEdit.id}&limite=50`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        console.log('Resultado consulta específica:', responseSpecific.data?.length || 0);
-        
-      } catch (error) {
-        console.error('Error en verificación de logs:', error);
       }
     },
     
@@ -1074,10 +1282,10 @@ export default {
         'UPDATE_EMAIL': 'Cambio de email',
         'UPDATE_PASS': 'Cambio de contraseña',
         'RESET_PASS': 'Reseteo de contraseña',
+        'UPDATE_PHOTO': 'Cambio de foto',
+        'DELETE_PHOTO': 'Eliminación de foto',
         'UPDATE': 'Actualización general'
       };
-      
-      console.log('Formateando acción:', accion, '→', acciones[accion] || accion);
       
       return acciones[accion] || accion;
     },
@@ -1195,8 +1403,23 @@ h1 {
   color: var(--dark-color);
 }
 
+.usuarios-table th:first-child,
+.usuarios-table td:first-child {
+  width: 60px;
+  text-align: center;
+}
+
 .table-responsive {
   overflow-x: auto;
+}
+
+.table-photo {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.table-photo:hover {
+  transform: scale(1.1);
 }
 
 .usuario-info strong {
@@ -1313,7 +1536,7 @@ h1 {
 }
 
 .rol-coordinador {
-  background-color: #727d6c;
+  background-color: #fd7e14;
   color: white;
   padding: 4px 8px;
   border-radius: 12px;
@@ -1322,7 +1545,7 @@ h1 {
 }
 
 .rol-vertice {
-  background-color: #fd7e14;
+  background-color: #6f42c1;
   color: white;
   padding: 4px 8px;
   border-radius: 12px;
@@ -1363,6 +1586,10 @@ h1 {
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.modal-small {
+  max-width: 500px;
 }
 
 .modal-header {
@@ -1426,19 +1653,31 @@ h1 {
   width: auto;
 }
 
+/* Usuario info en modal de edición */
 .usuario-info-edit {
+  display: flex;
+  align-items: center;
+  gap: 20px;
   background-color: #f8f9fa;
   padding: 15px;
   border-radius: 8px;
   margin-bottom: 20px;
 }
 
-.usuario-info-edit h3 {
+.edit-profile-photo {
+  flex-shrink: 0;
+}
+
+.usuario-text-info {
+  flex: 1;
+}
+
+.usuario-text-info h3 {
   margin: 0 0 5px 0;
   color: var(--dark-color);
 }
 
-.usuario-info-edit p {
+.usuario-text-info p {
   margin: 0;
   color: var(--secondary-color);
 }
@@ -1453,6 +1692,7 @@ h1 {
   display: flex;
   margin-bottom: 20px;
   border-bottom: 1px solid #e9ecef;
+  flex-wrap: wrap;
 }
 
 .edit-tabs .tab-btn {
@@ -1464,6 +1704,7 @@ h1 {
   color: #6c757d;
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .edit-tabs .tab-btn.active {
@@ -1475,11 +1716,115 @@ h1 {
   color: var(--primary-color);
 }
 
+/* Sección de edición de foto */
+.photo-edit-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.current-photo-display {
+  text-align: center;
+}
+
+.current-photo-display h4 {
+  margin-bottom: 15px;
+  color: var(--dark-color);
+}
+
+.large-profile-photo {
+  margin: 0 auto;
+}
+
+.photo-actions-admin {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.upload-section,
+.delete-section {
+  display: flex;
+  justify-content: center;
+}
+
+/* Modal rápido de foto */
+.quick-photo-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-info-quick {
+  text-align: center;
+}
+
+.user-info-quick h4 {
+  margin-top: 10px;
+  margin-bottom: 0;
+  color: var(--dark-color);
+}
+
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 250px;
+}
+
+/* Progress bar para uploads */
+.upload-progress {
+  width: 100%;
+  max-width: 300px;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: var(--secondary-color);
+  font-weight: 500;
+}
+
+.photo-info {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.photo-info small {
+  color: #6c757d;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
 /* Acciones de contraseña */
 .password-actions {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 /* Contenedor de logs */
@@ -1559,49 +1904,6 @@ h1 {
   font-size: 11px;
 }
 
-.log-details {
-  margin-top: 10px;
-}
-
-.log-details summary {
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--primary-color);
-  font-weight: 500;
-}
-
-.log-technical {
-  margin-top: 8px;
-  padding: 8px;
-  background-color: white;
-  border-radius: 4px;
-  border: 1px solid #dee2e6;
-}
-
-.log-data {
-  margin-bottom: 10px;
-}
-
-.log-data strong {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 11px;
-  color: #6c757d;
-}
-
-.log-data pre {
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 3px;
-  padding: 8px;
-  font-size: 10px;
-  margin: 0;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  max-height: 100px;
-  overflow-y: auto;
-}
-
 .loading-small {
   display: flex;
   flex-direction: column;
@@ -1652,11 +1954,20 @@ h1 {
   cursor: pointer;
   transition: all 0.2s;
   border: none;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .btn-sm {
   padding: 5px 10px;
   font-size: 12px;
+}
+
+.btn-block {
+  width: 100%;
 }
 
 .btn-primary {
@@ -1665,7 +1976,7 @@ h1 {
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background-color: #0056b3;
   border-color: #004085;
 }
@@ -1676,7 +1987,7 @@ h1 {
   color: var(--dark-color);
 }
 
-.btn-outline:hover {
+.btn-outline:hover:not(:disabled) {
   background-color: #e9ecef;
 }
 
@@ -1686,7 +1997,7 @@ h1 {
   color: #212529;
 }
 
-.btn-warning:hover {
+.btn-warning:hover:not(:disabled) {
   background-color: #e0a800;
   border-color: #d39e00;
 }
@@ -1697,7 +2008,7 @@ h1 {
   color: white;
 }
 
-.btn-danger:hover {
+.btn-danger:hover:not(:disabled) {
   background-color: #c82333;
   border-color: #bd2130;
 }
@@ -1707,7 +2018,7 @@ h1 {
   cursor: not-allowed;
 }
 
-/* CSS Variables que deberían estar en tu archivo principal */
+/* CSS Variables */
 :root {
   --primary-color: #007bff;
   --secondary-color: #6c757d;
@@ -1715,11 +2026,25 @@ h1 {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .usuarios-container {
-    padding: 10px;
+@media (max-width: 1200px) {
+  .usuarios-table th,
+  .usuarios-table td {
+    padding: 8px 10px;
+    font-size: 14px;
   }
   
+  .action-buttons {
+    flex-direction: column;
+    gap: 3px;
+  }
+  
+  .btn-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (max-width: 992px) {
   .form-row {
     flex-direction: column;
     gap: 0;
@@ -1736,20 +2061,235 @@ h1 {
   
   .edit-tabs .tab-btn {
     flex: 1;
-    min-width: 120px;
+    min-width: 100px;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  
+  .usuario-info-edit {
+    flex-direction: column;
+    text-align: center;
+    gap: 15px;
+  }
+  
+  .photo-actions-admin {
+    flex-direction: column;
+    align-items: center;
   }
   
   .password-actions {
     flex-direction: column;
   }
+}
+
+@media (max-width: 768px) {
+  .usuarios-container {
+    padding: 10px;
+  }
+  
+  .usuarios-table {
+    font-size: 12px;
+  }
+  
+  .usuarios-table th,
+  .usuarios-table td {
+    padding: 6px 8px;
+  }
+  
+  .usuario-info strong {
+    font-size: 13px;
+  }
+  
+  .usuario-info small {
+    font-size: 10px;
+  }
+  
+  .action-buttons {
+    flex-direction: row;
+    gap: 2px;
+  }
+  
+  .btn-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+  }
   
   .modal-container {
     width: 95%;
     max-width: none;
+    max-height: 95vh;
+  }
+  
+  .modal-body {
+    padding: 15px;
   }
   
   .logs-container {
     max-height: 300px;
   }
+  
+  .edit-tabs .tab-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  
+  .rol-admin,
+  .rol-doctor,
+  .rol-aseguradora,
+  .rol-paciente,
+  .rol-coordinador,
+  .rol-vertice {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
+
+@media (max-width: 576px) {
+  .table-responsive {
+    overflow-x: scroll;
+  }
+  
+  .usuarios-table {
+    min-width: 800px;
+  }
+  
+  .search-box {
+    flex-direction: column;
+  }
+  
+  .search-box input {
+    border-radius: 4px 4px 0 0;
+  }
+  
+  .search-btn {
+    border-radius: 0 0 4px 4px;
+  }
+  
+  .header-section {
+    text-align: center;
+  }
+  
+  .quick-actions {
+    max-width: 200px;
+  }
+}
+
+/* Animaciones para mejorar UX */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-container {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.log-item {
+  transition: all 0.2s ease;
+}
+
+.log-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table-photo {
+  transition: all 0.2s ease;
+}
+
+.table-photo:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Estados de carga mejorados */
+.btn:disabled {
+  position: relative;
+}
+
+.btn:disabled::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Indicadores visuales mejorados */
+.upload-progress {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+  background: #e9ecef;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill {
+  background: linear-gradient(90deg, var(--primary-color), #0056b3);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+/* Mejoras de accesibilidad */
+.btn:focus,
+.form-control:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.tab-btn:focus {
+  outline: none;
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.btn-icon:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Tooltips mejorados */
+.btn-icon[title] {
+  position: relative;
+}
+
+.btn-icon[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1000;
+  margin-bottom: 5px;
+}
+
+.btn-icon[title]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #333;
+  z-index: 1000;
 }
 </style>
