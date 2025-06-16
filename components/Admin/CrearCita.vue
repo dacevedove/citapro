@@ -8,19 +8,11 @@
 </template>
 
 <script>
-<template>
-  <div>
-    <!-- Botón simple que redirige a la nueva página -->
-    <router-link to="/crear-cita" class="btn-crear">
-      <i class="fas fa-plus-circle"></i> Nueva Cita
-    </router-link>
-  </div>
-</template>
-
-<script>
+// Usar sintaxis estándar en lugar de <script setup>
 export default {
-  name: 'CrearCita'
-};
+  name: 'CrearCita',
+  emits: ['cita-creada']
+}
 </script>
 
 <style scoped>
