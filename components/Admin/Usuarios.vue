@@ -2019,6 +2019,17 @@ h1 {
   cursor: not-allowed;
 }
 
+.usuario-info-completa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+}
+
+.usuario-info-completa:hover .usuario-avatar {
+  transform: scale(1.05);
+}
+
 /* CSS Variables */
 :root {
   --primary-color: #007bff;
@@ -2046,6 +2057,11 @@ h1 {
 }
 
 @media (max-width: 992px) {
+  .usuario-info-completa {
+    min-width: 160px;
+    gap: 10px;
+  }
+
   .form-row {
     flex-direction: column;
     gap: 0;
@@ -2084,6 +2100,13 @@ h1 {
 }
 
 @media (max-width: 768px) {
+  .usuario-info-completa {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 120px;
+  }
+
   .usuarios-container {
     padding: 10px;
   }
@@ -2147,6 +2170,13 @@ h1 {
 }
 
 @media (max-width: 576px) {
+  .usuario-info-completa {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    min-width: 140px;
+  }
+  
   .table-responsive {
     overflow-x: scroll;
   }
