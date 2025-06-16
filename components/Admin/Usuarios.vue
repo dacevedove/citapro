@@ -2278,7 +2278,7 @@ h1 {
   border-radius: 4px;
   font-size: 11px;
   white-space: nowrap;
-  z-index: 1000;
+  z-index: 1000; 
   margin-bottom: 5px;
 }
 
