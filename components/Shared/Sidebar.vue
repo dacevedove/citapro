@@ -1,4 +1,4 @@
-// Archivo: components/Shared/Sidebar.vue
+// Archivo: components/Shared/Sidebar.vue (Actualizado)
 <template>
   <div class="sidebar" :class="{ collapsed: isCollapsed }">
     <div class="sidebar-header">
@@ -18,6 +18,12 @@
             <router-link to="/coordinador/dashboard" class="menu-item">
               <i class="fas fa-tachometer-alt"></i>
               <span>Dashboard</span>
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/crear-cita" class="menu-item menu-item-highlight">
+              <i class="fas fa-plus-circle"></i>
+              <span>Nueva Cita</span>
             </router-link>
           </li>
           <li>
@@ -98,6 +104,12 @@
             </router-link>
           </li>
           <li>
+            <router-link to="/crear-cita" class="menu-item menu-item-highlight">
+              <i class="fas fa-plus-circle"></i>
+              <span>Nueva Cita</span>
+            </router-link>
+          </li>
+          <li>
             <router-link to="/admin/citas" class="menu-item">
               <i class="fas fa-calendar-check"></i>
               <span>Gestión de Citas</span>
@@ -168,6 +180,12 @@
             </router-link>
           </li>
           <li>
+            <router-link to="/crear-cita" class="menu-item menu-item-highlight">
+              <i class="fas fa-plus-circle"></i>
+              <span>Nueva Cita</span>
+            </router-link>
+          </li>
+          <li>
             <router-link to="/doctor/horarios" class="menu-item">
               <i class="fas fa-calendar"></i>
               <span>Mis Horarios</span>
@@ -202,6 +220,12 @@
             <router-link to="/aseguradora/dashboard" class="menu-item">
               <i class="fas fa-tachometer-alt"></i>
               <span>Dashboard</span>
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/crear-cita" class="menu-item menu-item-highlight">
+              <i class="fas fa-plus-circle"></i>
+              <span>Nueva Cita</span>
             </router-link>
           </li>
           <li>
@@ -364,6 +388,25 @@ export default {
   background-color: #2E2825;
 }
 
+/* Estilo especial para Nueva Cita */
+.menu-item-highlight {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  margin: 5px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.menu-item-highlight:hover {
+  background: linear-gradient(135deg, #218838, #1ea085);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.menu-item-highlight.router-link-active {
+  background: linear-gradient(135deg, #1e7e34, #198754);
+}
+
 /* Estilos para submenús */
 .menu-group {
   position: relative;
@@ -391,7 +434,7 @@ export default {
 .submenu-arrow {
   transition: transform 0.3s ease;
   font-size: 12px;
-  padding:0.5em;
+  padding: 0.5em;
 }
 
 .submenu-arrow.rotated {
@@ -451,6 +494,13 @@ export default {
 .sidebar.collapsed .menu-item {
   justify-content: center;
   padding: 15px 0;
+  margin: 5px 0;
+  border-radius: 0;
+}
+
+.sidebar.collapsed .menu-item-highlight {
+  margin: 5px 8px;
+  border-radius: 8px;
 }
 
 .sidebar.collapsed .menu-item i {

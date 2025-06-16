@@ -1,3 +1,4 @@
+// Archivo: router/index.js (Actualizado con las nuevas rutas)
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../store/auth';
 
@@ -6,6 +7,7 @@ import Login from '../components/Auth/Login.vue';
 
 // Componentes compartidos
 import Perfil from '../components/Shared/Perfil.vue';
+import CrearCitaPage from '../components/Shared/CrearCitaPage.vue';
 
 // Componentes de administrador
 import AdminDashboard from '../components/Admin/Dashboard.vue';
@@ -62,6 +64,17 @@ const routes = [
     name: 'Perfil',
     component: Perfil,
     meta: { requiresAuth: true }
+  },
+
+  // Nueva página para crear citas (disponible para múltiples roles)
+  {
+    path: '/crear-cita',
+    name: 'CrearCita',
+    component: CrearCitaPage,
+    meta: { 
+      requiresAuth: true, 
+      roles: ['admin', 'coordinador', 'doctor', 'aseguradora'] 
+    }
   },
 
   // Rutas temporales para Vértice
@@ -154,11 +167,11 @@ const routes = [
     meta: { requiresAuth: true, role: 'admin' }
   },
 
-  // Rutas de coordinador (con las mismas funcionalidades que admin para horarios)
+  // Rutas de coordinador
   {
     path: '/coordinador/dashboard',
     name: 'CoordinadorDashboard',
-    component: AdminDashboard, // Reutilizando el dashboard de admin
+    component: AdminDashboard,
     meta: { requiresAuth: true, role: 'coordinador' }
   },
   {
@@ -291,6 +304,12 @@ router.beforeEach(async (to, from, next) => {
       // Verificar si la ruta requiere un rol específico
       if (to.meta.role && authStore.userRole !== to.meta.role) {
         // Redirigir según el rol del usuario si está intentando acceder a una ruta no permitida
+        return authStore.redirectBasedOnRole();
+      }
+      
+      // Verificar si la ruta requiere múltiples roles (como crear-cita)
+      if (to.meta.roles && !to.meta.roles.includes(authStore.userRole)) {
+        // Redirigir según el rol del usuario si no tiene permisos
         return authStore.redirectBasedOnRole();
       }
       

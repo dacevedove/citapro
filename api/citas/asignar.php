@@ -1,4 +1,5 @@
 <?php
+// Archivo: api/citas/asignar.php (Actualizado para incluir tipo_bloque_id)
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: PUT, POST");
@@ -127,16 +128,20 @@ try {
                 doctor_id = ?,
                 fecha = ?,
                 hora = ?,
+                tipo_bloque_id = ?,
                 asignacion_libre = 0,
                 estado = 'asignada'
             WHERE id = ?
         ");
+        
+        $tipoBloque = isset($data['tipo_bloque_id']) ? $data['tipo_bloque_id'] : $horarioDisponible['tipo_bloque_id'];
         
         $stmt->execute([
             $data['especialidad_id'],
             $data['doctor_id'],
             $data['fecha'],
             $data['hora'],
+            $tipoBloque,
             $data['cita_id']
         ]);
         
@@ -165,10 +170,13 @@ try {
     elseif (isset($data['doctor_id']) && !isset($data['asignacion_libre'])) {
         error_log("Caso 2: Asignación a doctor específico");
         
+        $tipoBloque = isset($data['tipo_bloque_id']) ? $data['tipo_bloque_id'] : null;
+        
         $stmt = $conn->prepare("
             UPDATE citas SET 
                 especialidad_id = ?,
                 doctor_id = ?,
+                tipo_bloque_id = ?,
                 asignacion_libre = 0,
                 estado = 'asignada'
             WHERE id = ?
@@ -177,6 +185,7 @@ try {
         $stmt->execute([
             $data['especialidad_id'],
             $data['doctor_id'],
+            $tipoBloque,
             $data['cita_id']
         ]);
         
@@ -186,10 +195,13 @@ try {
     else {
         error_log("Caso 3: Asignación libre");
         
+        $tipoBloque = isset($data['tipo_bloque_id']) ? $data['tipo_bloque_id'] : null;
+        
         $stmt = $conn->prepare("
             UPDATE citas SET 
                 especialidad_id = ?,
                 doctor_id = NULL,
+                tipo_bloque_id = ?,
                 asignacion_libre = 1,
                 estado = 'asignada'
             WHERE id = ?
@@ -197,6 +209,7 @@ try {
         
         $stmt->execute([
             $data['especialidad_id'],
+            $tipoBloque,
             $data['cita_id']
         ]);
         
@@ -208,6 +221,31 @@ try {
         $stmt = $conn->prepare("UPDATE citas SET descripcion = CONCAT(descripcion, '\n\nNotas de asignación: ', ?) WHERE id = ?");
         $stmt->execute([$data['notas'], $data['cita_id']]);
     }
+    
+    // Log de auditoría
+    $logStmt = $conn->prepare("
+        INSERT INTO logs_auditoria (usuario_id, tabla_afectada, registro_id, accion, datos_nuevos, direccion_ip) 
+        VALUES (:usuario_id, 'citas', :registro_id, 'asignar', :datos_nuevos, :ip)
+    ");
+    
+    $logStmt->bindParam(':usuario_id', $userData['id']);
+    $logStmt->bindParam(':registro_id', $data['cita_id']);
+    
+    $datosNuevos = json_encode([
+        'especialidad_id' => $data['especialidad_id'],
+        'doctor_id' => $data['doctor_id'] ?? null,
+        'tipo_bloque_id' => $data['tipo_bloque_id'] ?? null,
+        'fecha' => $data['fecha'] ?? null,
+        'hora' => $data['hora'] ?? null,
+        'asignacion_libre' => $data['asignacion_libre'] ?? false,
+        'notas' => $data['notas'] ?? null
+    ]);
+    $logStmt->bindParam(':datos_nuevos', $datosNuevos);
+    
+    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $logStmt->bindParam(':ip', $ip);
+    
+    $logStmt->execute();
     
     $conn->commit();
     
