@@ -2030,6 +2030,40 @@ h1 {
   transform: scale(1.05);
 }
 
+.usuario-detalles {
+  flex: 1;
+  min-width: 0;
+  overflow:hidden;
+}
+
+.usuario-nombre {
+  display: block;
+  font-weight: 500;
+  color: var(--dark-color);
+  margin-bottom: 4px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usuario-telefono {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--secondary-color);
+  font-size: 12px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usuario-telefono i {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
 /* CSS Variables */
 :root {
   --primary-color: #007bff;
@@ -2060,6 +2094,14 @@ h1 {
   .usuario-info-completa {
     min-width: 160px;
     gap: 10px;
+  }
+
+  .usuario-telefono {
+    font-size: 11px;
+  }
+
+  .usuario-nombre {
+    font-size: 13px;
   }
 
   .form-row {
@@ -2106,6 +2148,12 @@ h1 {
     gap: 8px;
     min-width: 120px;
   }
+
+  .usuario-detalles { width: 100%; }
+
+  .usuario-nombre { font-size: 12px; }
+
+  .usuario-telefono { font-size: 10px; }
 
   .usuarios-container {
     padding: 10px;
@@ -2176,7 +2224,7 @@ h1 {
     gap: 6px;
     min-width: 140px;
   }
-  
+
   .table-responsive {
     overflow-x: scroll;
   }
