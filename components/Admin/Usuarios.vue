@@ -133,7 +133,201 @@
       </table>
     </div>
     
-    <!-- Resto de modals igual... -->
+    <!-- Modal para crear usuario -->
+    <div v-if="mostrarModalNuevo" class="modal-overlay">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h2>Nuevo Usuario</h2>
+          <button @click="cerrarModalNuevo" class="close-btn">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+          <form @submit.prevent="crearUsuario">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="nombre">Nombre:</label>
+                <input 
+                  type="text" 
+                  id="nombre" 
+                  v-model="nuevoUsuario.nombre" 
+                  required
+                  class="form-control"
+                >
+              </div>
+              
+              <div class="form-group">
+                <label for="apellido">Apellido:</label>
+                <input 
+                  type="text" 
+                  id="apellido" 
+                  v-model="nuevoUsuario.apellido" 
+                  required
+                  class="form-control"
+                >
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="cedula">Cédula de Identidad:</label>
+              <input 
+                type="text" 
+                id="cedula" 
+                v-model="nuevoUsuario.cedula" 
+                required
+                class="form-control"
+              >
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="email">Email:</label>
+                <input 
+                  type="email" 
+                  id="email" 
+                  v-model="nuevoUsuario.email" 
+                  required
+                  class="form-control"
+                >
+              </div>
+              
+              <div class="form-group">
+                <label for="telefono">Teléfono:</label>
+                <input 
+                  type="tel" 
+                  id="telefono" 
+                  v-model="nuevoUsuario.telefono" 
+                  class="form-control"
+                >
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="role">Rol:</label>
+              <select 
+                id="role" 
+                v-model="nuevoUsuario.role" 
+                required
+                class="form-control"
+              >
+                <option value="" disabled>Seleccione un rol</option>
+                <option value="admin">Administrador</option>
+                <option value="doctor">Doctor</option>
+                <option value="aseguradora">Aseguradora</option>
+                <option value="paciente">Paciente</option>
+                <option value="coordinador">Coordinador</option>
+                <option value="vertice">Vértice</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="password">Contraseña:</label>
+              <input 
+                type="password" 
+                id="password" 
+                v-model="nuevoUsuario.password" 
+                required
+                class="form-control"
+                placeholder="Mínimo 8 caracteres"
+                minlength="8"
+              >
+            </div>
+            
+            <div class="form-group">
+              <label for="confirmPassword">Confirmar Contraseña:</label>
+              <input 
+                type="password" 
+                id="confirmPassword" 
+                v-model="nuevoUsuario.confirmPassword" 
+                required
+                class="form-control"
+                placeholder="Repita la contraseña"
+                minlength="8"
+              >
+            </div>
+            
+            <div class="form-group">
+              <div class="checkbox-group">
+                <input type="checkbox" id="esta_activo" v-model="nuevoUsuario.esta_activo">
+                <label for="esta_activo">Usuario activo</label>
+              </div>
+            </div>
+            
+            <div v-if="error" class="alert alert-danger">
+              {{ error }}
+            </div>
+            
+            <div class="modal-footer">
+              <button type="button" @click="cerrarModalNuevo" class="btn btn-outline">Cancelar</button>
+              <button type="submit" class="btn btn-primary" :disabled="guardando">
+                {{ guardando ? 'Creando...' : 'Crear Usuario' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Modal rápido para cambiar foto -->
+    <div v-if="mostrarModalFoto" class="modal-overlay">
+      <div class="modal-container modal-small">
+        <div class="modal-header">
+          <h2>Cambiar Foto de Perfil</h2>
+          <button @click="cerrarModalFoto" class="close-btn">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="quick-photo-edit">
+            <div class="user-info-quick">
+              <ProfilePhoto
+                :photo-url="usuarioFoto.foto_perfil"
+                :user-name="usuarioFoto.nombre + ' ' + usuarioFoto.apellido"
+                :initials="getInitials(usuarioFoto.nombre, usuarioFoto.apellido)"
+                size="lg"
+                :show-initials="true"
+                :border="true"
+              />
+              <h4>{{ usuarioFoto.nombre }} {{ usuarioFoto.apellido }}</h4>
+            </div>
+            
+            <div class="quick-actions">
+              <label for="quick-photo-upload" class="btn btn-primary btn-block">
+                <i class="fas fa-camera"></i>
+                {{ usuarioFoto.foto_perfil ? 'Cambiar Foto' : 'Subir Foto' }}
+              </label>
+              <input 
+                type="file" 
+                id="quick-photo-upload" 
+                accept="image/*" 
+                @change="handleQuickPhotoUpload"
+                style="display: none;"
+              >
+              
+              <button 
+                v-if="usuarioFoto.foto_perfil" 
+                @click="eliminarFotoRapido" 
+                class="btn btn-outline btn-block"
+                :disabled="uploadingPhoto"
+              >
+                <i class="fas fa-trash"></i>
+                Eliminar Foto
+              </button>
+            </div>
+            
+            <!-- Progress bar -->
+            <div v-if="uploadingPhoto" class="upload-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" :style="{width: uploadProgress + '%'}"></div>
+              </div>
+              <span class="progress-text">{{ uploadProgress }}%</span>
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button type="button" @click="cerrarModalFoto" class="btn btn-outline">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 

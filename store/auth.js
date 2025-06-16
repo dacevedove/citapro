@@ -52,6 +52,7 @@ export const useAuthStore = defineStore('auth', {
           this.logout();
         } else {
           console.log('Auth store - Token valid, user loaded');
+          console.log('Auth store - User photo after validation:', this.user?.foto_perfil);
         }
       }
       
@@ -109,6 +110,16 @@ export const useAuthStore = defineStore('auth', {
           console.log('Token validated successfully');
           console.log('User data from validation:', this.user);
           console.log('User photo from validation:', this.user?.foto_perfil);
+          
+          // Debug: verificar que la foto se está cargando correctamente
+          if (this.user?.foto_perfil) {
+            console.log('Auth store - Photo URL detected:', this.user.foto_perfil);
+            // Verificar si la URL es válida
+            this.verifyPhotoUrl(this.user.foto_perfil);
+          } else {
+            console.log('Auth store - No photo URL in user data');
+          }
+          
           return true;
         } else {
           console.log('Token validation failed:', response.data);
@@ -138,9 +149,17 @@ export const useAuthStore = defineStore('auth', {
         
         if (response.data.success) {
           // Actualizar datos del usuario manteniendo la reactividad
+          const oldPhoto = this.user?.foto_perfil;
           this.user = { ...this.user, ...response.data.user };
+          
           console.log('User data refreshed successfully');
           console.log('Updated user photo:', this.user?.foto_perfil);
+          
+          // Si la foto cambió, verificarla
+          if (this.user?.foto_perfil && this.user.foto_perfil !== oldPhoto) {
+            this.verifyPhotoUrl(this.user.foto_perfil);
+          }
+          
           return true;
         }
         return false;
@@ -163,6 +182,11 @@ export const useAuthStore = defineStore('auth', {
         
         console.log('Store - User after photo update:', this.user);
         console.log('Store - Photo from getter after update:', this.userPhoto);
+        
+        // Verificar la nueva URL
+        if (photoUrl) {
+          this.verifyPhotoUrl(photoUrl);
+        }
       }
     },
 
@@ -174,6 +198,31 @@ export const useAuthStore = defineStore('auth', {
         this.user = { ...this.user, ...userData };
         console.log('Store - Profile updated:', this.user);
       }
+    },
+    
+    // Nueva función para verificar URLs de fotos
+    verifyPhotoUrl(photoUrl) {
+      if (!photoUrl) return;
+      
+      // Construir URL completa si es necesaria
+      let fullUrl = photoUrl;
+      if (!photoUrl.startsWith('http')) {
+        fullUrl = photoUrl.startsWith('/') 
+          ? window.location.origin + photoUrl 
+          : window.location.origin + '/' + photoUrl;
+      }
+      
+      console.log('Auth store - Verifying photo URL:', fullUrl);
+      
+      // Verificar que la imagen existe
+      const img = new Image();
+      img.onload = () => {
+        console.log('Auth store - Photo URL verified successfully:', fullUrl);
+      };
+      img.onerror = () => {
+        console.error('Auth store - Photo URL failed to load:', fullUrl);
+      };
+      img.src = fullUrl;
     },
     
     logout() {
@@ -195,6 +244,11 @@ export const useAuthStore = defineStore('auth', {
     updateUserData(userData) {
       console.log('Auth store - Updating user data:', userData);
       this.user = userData;
+      
+      // Verificar foto si está presente
+      if (userData?.foto_perfil) {
+        this.verifyPhotoUrl(userData.foto_perfil);
+      }
     },
     
     redirectBasedOnRole() {

@@ -10,6 +10,11 @@ header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers
 include_once '../config/database.php';
 include_once '../config/jwt.php';
 
+// Función para logging
+function logDebug($message) {
+    error_log(date('Y-m-d H:i:s') . " - LISTAR_USUARIOS: " . $message);
+}
+
 // Obtener JWT del encabezado
 $headers = getallheaders();
 $jwt = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : '';
@@ -35,9 +40,11 @@ try {
     $role = isset($_GET['role']) ? $_GET['role'] : null;
     $activo = isset($_GET['activo']) ? $_GET['activo'] : null;
     
+    logDebug("Filtros - busqueda: " . ($busqueda ?: 'ninguna') . ", role: " . ($role ?: 'todos') . ", activo: " . ($activo !== null ? $activo : 'todos'));
+    
     // Construir consulta SQL
     $sql = "SELECT u.id, u.nombre, u.apellido, u.email, u.cedula, u.telefono, u.role, 
-                   u.esta_activo, u.email_verificado, u.ultimo_acceso, u.creado_en,
+                   u.esta_activo, u.email_verificado, u.ultimo_acceso, u.creado_en, u.foto_perfil,
                    CASE 
                        WHEN u.role = 'doctor' THEN (SELECT e.nombre FROM doctores d 
                                                     JOIN especialidades e ON d.especialidad_id = e.id 
@@ -68,6 +75,9 @@ try {
     
     $sql .= " ORDER BY u.creado_en DESC";
     
+    logDebug("SQL Query: " . $sql);
+    logDebug("Params: " . json_encode($params));
+    
     // Ejecutar consulta
     $stmt = $conn->prepare($sql);
     
@@ -78,8 +88,17 @@ try {
     $stmt->execute();
     $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    logDebug("Found " . count($usuarios) . " users");
+    
     // Formatear fechas y agregar información adicional
     foreach ($usuarios as &$usuario) {
+        // Log para debug de fotos
+        if ($usuario['foto_perfil']) {
+            logDebug("User {$usuario['id']} ({$usuario['nombre']}) has photo: {$usuario['foto_perfil']}");
+        } else {
+            logDebug("User {$usuario['id']} ({$usuario['nombre']}) has no photo");
+        }
+        
         // Formatear último acceso
         if ($usuario['ultimo_acceso']) {
             $fecha_acceso = new DateTime($usuario['ultimo_acceso']);
@@ -110,13 +129,25 @@ try {
         $usuario['creado_en'] = date('d/m/Y H:i', strtotime($usuario['creado_en']));
         $usuario['esta_activo'] = (bool)$usuario['esta_activo'];
         $usuario['email_verificado'] = (bool)$usuario['email_verificado'];
+        
+        // Asegurar que foto_perfil no sea null si está vacío
+        if (empty($usuario['foto_perfil'])) {
+            $usuario['foto_perfil'] = null;
+        }
     }
+    
+    logDebug("Returning " . count($usuarios) . " users");
     
     http_response_code(200);
     echo json_encode($usuarios);
     
 } catch(PDOException $e) {
+    logDebug("Database error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(["error" => "Error en el servidor: " . $e->getMessage()]);
+} catch(Exception $e) {
+    logDebug("General error: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(["error" => "Error inesperado: " . $e->getMessage()]);
 }
 ?>
