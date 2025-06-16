@@ -15,48 +15,16 @@
         
         <div class="dropdown">
           <button class="dropdown-toggle" @click.stop="toggleDropdown">
-            <div class="user-avatar">
-              <img 
-                v-if="userPhoto && !photoError" 
-                :src="getPhotoUrl(userPhoto)" 
-                :alt="'Foto de ' + userName"
-                class="avatar-image"
-                @error="handlePhotoError"
-              >
-              <div v-else class="avatar-placeholder">
-                <span v-if="userInitials" class="avatar-initials">{{ userInitials }}</span>
-                <i v-else class="fas fa-user-circle"></i>
-              </div>
-            </div>
-            <div class="dropdown-indicator">
-              <i :class="['fas', showDropdown ? 'fa-chevron-up' : 'fa-chevron-down']"></i>
-            </div>
+            <Avatar
+              :photo-url="userPhoto"
+              :name="userName"
+              :initials="userInitials"
+              size="sm"
+            />
+            <i class="dropdown-chevron fas fa-chevron-down" :class="{ 'rotated': showDropdown }"></i>
           </button>
           
           <div v-if="showDropdown" class="dropdown-menu">
-            <div class="dropdown-header">
-              <div class="header-avatar">
-                <img 
-                  v-if="userPhoto && !photoError" 
-                  :src="getPhotoUrl(userPhoto)" 
-                  :alt="'Foto de ' + userName"
-                  class="header-avatar-image"
-                  @error="handlePhotoError"
-                >
-                <div v-else class="header-avatar-placeholder">
-                  <span v-if="userInitials" class="header-avatar-initials">{{ userInitials }}</span>
-                  <i v-else class="fas fa-user"></i>
-                </div>
-              </div>
-              <div class="dropdown-user-info">
-                <span class="dropdown-user-name">{{ userName }}</span>
-                <span class="dropdown-user-role">{{ formatRole }}</span>
-                <span class="dropdown-user-email">{{ userEmail }}</span>
-              </div>
-            </div>
-            
-            <div class="dropdown-divider"></div>
-            
             <router-link to="/perfil" @click="closeDropdown" class="dropdown-item">
               <i class="fas fa-user-edit"></i> 
               <span>Mi Perfil</span>
@@ -82,13 +50,16 @@
 
 <script>
 import { useAuthStore } from '../../store/auth';
+import Avatar from './Avatar.vue';
 
 export default {
   name: 'Navbar',
+  components: {
+    Avatar
+  },
   data() {
     return {
-      showDropdown: false,
-      photoError: false
+      showDropdown: false
     }
   },
   computed: {
@@ -96,7 +67,6 @@ export default {
       return useAuthStore();
     },
     userName() {
-      // Forzar reactividad accediendo directamente al store
       const user = this.authStore.user;
       return user ? `${user.nombre} ${user.apellido}` : 'Usuario';
     },
@@ -104,7 +74,6 @@ export default {
       return this.authStore.userRole;
     },
     userPhoto() {
-      // Forzar reactividad y debug
       const photo = this.authStore.user?.foto_perfil;
       console.log('Navbar - User photo computed:', photo);
       return photo;
@@ -131,6 +100,16 @@ export default {
       }
     }
   },
+  watch: {
+    // Observar cambios en la foto del usuario
+    'authStore.user.foto_perfil': {
+      handler(newPhoto, oldPhoto) {
+        console.log('Navbar - Foto cambió:', { old: oldPhoto, new: newPhoto });
+        this.$forceUpdate(); // Forzar re-render del componente
+      },
+      immediate: true
+    }
+  },
   methods: {
     toggleDropdown(event) {
       console.log('Toggle dropdown clicked');
@@ -142,14 +121,6 @@ export default {
     },
     closeDropdown() {
       this.showDropdown = false;
-    },
-    getPhotoUrl(photoPath) {
-      if (!photoPath) return '';
-      if (photoPath.startsWith('http')) return photoPath;
-      return window.location.origin + photoPath;
-    },
-    handlePhotoError() {
-      this.photoError = true;
     },
     logout() {
       this.authStore.logout();
@@ -163,6 +134,7 @@ export default {
   },
   mounted() {
     console.log('Navbar mounted');
+    console.log('Initial user data:', this.authStore.user);
     document.addEventListener('click', this.handleClickOutside);
   },
   beforeUnmount() {
@@ -273,60 +245,17 @@ export default {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-/* User Avatar */
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  flex-shrink: 0;
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
-}
-
-.avatar-initials {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.avatar-placeholder i {
-  font-size: 18px;
-}
-
-.dropdown-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  transition: transform 0.2s ease;
-}
-
-.dropdown-indicator i {
+.dropdown-chevron {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
 }
 
-.dropdown-toggle:hover .dropdown-indicator i {
+.dropdown-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+.dropdown-toggle:hover .dropdown-chevron {
   color: white;
 }
 
@@ -335,10 +264,10 @@ export default {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 280px;
+  min-width: 200px;
   background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(0, 0, 0, 0.1);
   z-index: 99999;
   overflow: hidden;
@@ -357,89 +286,11 @@ export default {
   }
 }
 
-/* Dropdown Header */
-.dropdown-header {
-  display: flex;
-  align-items: center;
-  padding: 20px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  gap: 16px;
-}
-
-.header-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: 2px solid white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-}
-
-.header-avatar-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.header-avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
-}
-
-.header-avatar-initials {
-  font-size: 16px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.header-avatar-placeholder i {
-  font-size: 20px;
-}
-
-.dropdown-user-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.dropdown-user-name {
-  font-weight: 600;
-  color: #2c3e50;
-  font-size: 16px;
-  line-height: 1.2;
-}
-
-.dropdown-user-role {
-  font-size: 13px;
-  color: #007bff;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.dropdown-user-email {
-  font-size: 12px;
-  color: #6c757d;
-  font-weight: 400;
-}
-
 /* Dropdown Items */
 .dropdown-item {
   display: flex;
   align-items: center;
-  padding: 14px 20px;
+  padding: 12px 16px;
   text-decoration: none;
   color: #495057;
   transition: all 0.2s ease;
@@ -495,22 +346,18 @@ export default {
   }
   
   .dropdown-menu {
-    min-width: 260px;
+    min-width: 180px;
     right: -8px;
   }
   
-  .dropdown-header {
-    padding: 16px;
-  }
-  
   .dropdown-item {
-    padding: 12px 16px;
+    padding: 10px 14px;
   }
 }
 
 @media (max-width: 480px) {
   .dropdown-menu {
-    min-width: 240px;
+    min-width: 160px;
     right: -16px;
   }
 }

@@ -108,14 +108,19 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async updateUserPhoto(photoUrl) {
+      console.log('Store - Actualizando foto de:', this.user?.foto_perfil, 'a:', photoUrl);
       if (this.user) {
-        this.user.foto_perfil = photoUrl;
+        // Crear un nuevo objeto para trigger reactividad
+        this.user = { ...this.user, foto_perfil: photoUrl };
+        console.log('Store - Foto actualizada en el store:', this.user.foto_perfil);
       }
     },
 
     async updateUserProfile(userData) {
       if (this.user) {
+        // Crear un nuevo objeto para trigger reactividad
         this.user = { ...this.user, ...userData };
+        console.log('Store - Perfil actualizado:', this.user);
       }
     },
     
