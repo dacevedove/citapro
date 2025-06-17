@@ -1243,6 +1243,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 16px;
+  height:100%;
 }
 
 .assignment-option:hover .option-card {

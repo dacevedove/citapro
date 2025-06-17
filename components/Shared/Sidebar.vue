@@ -15,15 +15,15 @@
         <div class="menu-title">Panel de Coordinación</div>
         <ul class="menu-items">
           <li>
-            <router-link to="/coordinador/dashboard" class="menu-item">
-              <i class="fas fa-tachometer-alt"></i>
-              <span>Dashboard</span>
-            </router-link>
-          </li>
-          <li>
             <router-link to="/crear-cita" class="menu-item menu-item-highlight">
               <i class="fas fa-plus-circle"></i>
               <span>Nueva Cita</span>
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/coordinador/dashboard" class="menu-item">
+              <i class="fas fa-tachometer-alt"></i>
+              <span>Dashboard</span>
             </router-link>
           </li>
           <li>
@@ -390,7 +390,7 @@ export default {
 
 /* Estilo especial para Nueva Cita */
 .menu-item-highlight {
-  background: linear-gradient(135deg, #28a745, #20c997);
+  background: #28a745;
   margin: 5px 10px;
   border-radius: 8px;
   font-weight: 600;
