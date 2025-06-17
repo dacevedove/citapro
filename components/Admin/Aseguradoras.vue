@@ -207,7 +207,7 @@
 
 <script>
 import axios from 'axios';
-import CIE10SearchDropdown from '../Shared/CIE10SearchDropdown.vue';
+import CIE10SearchDropdown from '../Shared/BusquedaCIE10.vue';
 
 export default {
   name: 'Aseguradoras',
