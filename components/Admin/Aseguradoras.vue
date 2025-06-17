@@ -37,6 +37,54 @@
       </div>
     </div>
     
+    <!-- Sección de prueba para CIE-10 -->
+    <div class="test-section">
+      <div class="test-card">
+        <h3>🧪 Prueba del Componente CIE-10</h3>
+        <p class="test-description">Este es un componente de prueba para validar la funcionalidad de búsqueda CIE-10. Se eliminará después de las pruebas.</p>
+        
+        <div class="test-form">
+          <div class="form-group">
+            <label for="cie10-test">Diagnóstico de Prueba:</label>
+            <CIE10SearchDropdown
+              v-model="diagnosticoPrueba"
+              placeholder="Buscar código CIE-10 para prueba..."
+              :required="false"
+              @select="handleDiagnosticoSelect"
+              @clear="handleDiagnosticoClear"
+            />
+          </div>
+          
+          <!-- Mostrar diagnóstico seleccionado -->
+          <div v-if="diagnosticoPrueba" class="selected-diagnostic">
+            <h4>✅ Diagnóstico Seleccionado:</h4>
+            <div class="diagnostic-info">
+              <span class="diagnostic-code">{{ diagnosticoPrueba.code }}</span>
+              <span class="diagnostic-description">{{ diagnosticoPrueba.description }}</span>
+              <span class="diagnostic-level">Nivel {{ diagnosticoPrueba.level }}</span>
+            </div>
+          </div>
+          
+          <!-- Botones de prueba -->
+          <div class="test-actions">
+            <button 
+              class="btn btn-outline btn-sm" 
+              @click="limpiarPrueba"
+              v-if="diagnosticoPrueba"
+            >
+              🗑️ Limpiar Selección
+            </button>
+            <button 
+              class="btn btn-info btn-sm" 
+              @click="probarDiagnosticoAleatorio"
+            >
+              🎲 Seleccionar Diagnóstico Aleatorio
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <div class="table-responsive">
       <table class="aseguradoras-table">
         <thead>
@@ -159,9 +207,13 @@
 
 <script>
 import axios from 'axios';
+import CIE10SearchDropdown from '../Shared/CIE10SearchDropdown.vue';
 
 export default {
   name: 'Aseguradoras',
+  components: {
+    CIE10SearchDropdown
+  },
   data() {
     return {
       aseguradoras: [],
@@ -183,7 +235,9 @@ export default {
         password: '',
         estado: 'activo'
       },
-      aseguradoraEliminar: null
+      aseguradoraEliminar: null,
+      // Datos para prueba de CIE-10
+      diagnosticoPrueba: null
     }
   },
   mounted() {
@@ -341,6 +395,36 @@ export default {
       } finally {
         this.enviando = false;
       }
+    },
+    
+    // Métodos para prueba de CIE-10
+    handleDiagnosticoSelect(diagnostico) {
+      console.log('🎯 Diagnóstico seleccionado:', diagnostico);
+      // Aquí puedes agregar lógica adicional si necesitas
+    },
+    
+    handleDiagnosticoClear() {
+      console.log('🗑️ Diagnóstico limpiado');
+    },
+    
+    limpiarPrueba() {
+      this.diagnosticoPrueba = null;
+      console.log('🧹 Prueba limpiada');
+    },
+    
+    probarDiagnosticoAleatorio() {
+      // Simular algunos diagnósticos de prueba
+      const diagnosticosPrueba = [
+        { code: 'A00', description: 'Cólera', level: 1 },
+        { code: 'B00', description: 'Infecciones herpéticas', level: 1 },
+        { code: 'C00', description: 'Tumor maligno del labio', level: 1 },
+        { code: 'D50', description: 'Anemia por deficiencia de hierro', level: 1 },
+        { code: 'E10', description: 'Diabetes mellitus tipo 1', level: 1 }
+      ];
+      
+      const diagnosticoAleatorio = diagnosticosPrueba[Math.floor(Math.random() * diagnosticosPrueba.length)];
+      this.diagnosticoPrueba = diagnosticoAleatorio;
+      console.log('🎲 Diagnóstico aleatorio seleccionado:', diagnosticoAleatorio);
     }
   }
 }
@@ -370,6 +454,101 @@ h1 {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 20px;
   margin-bottom: 20px;
+}
+
+/* Estilos para la sección de prueba CIE-10 */
+.test-section {
+  margin-bottom: 30px;
+}
+
+.test-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 25px;
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.test-card h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.test-description {
+  margin: 0 0 20px 0;
+  opacity: 0.9;
+  font-size: 0.95rem;
+}
+
+.test-form {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.test-form .form-group {
+  margin-bottom: 20px;
+}
+
+.test-form label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: white;
+}
+
+.selected-diagnostic {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  border-left: 4px solid #4ade80;
+}
+
+.selected-diagnostic h4 {
+  margin: 0 0 10px 0;
+  color: #4ade80;
+  font-size: 1rem;
+}
+
+.diagnostic-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.diagnostic-code {
+  font-family: 'Courier New', monospace;
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.diagnostic-description {
+  flex: 1;
+  font-weight: 500;
+}
+
+.diagnostic-level {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.test-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .search-box {
@@ -454,6 +633,7 @@ h1 {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  border: none;
 }
 
 .btn-primary {
@@ -546,5 +726,26 @@ h1 {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
+}
+
+/* Responsivo para dispositivos móviles */
+@media (max-width: 768px) {
+  .test-actions {
+    flex-direction: column;
+  }
+  
+  .test-form {
+    padding: 15px;
+  }
+  
+  .diagnostic-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .filter-options {
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 </style>
