@@ -207,7 +207,7 @@
 
 <script>
 import axios from 'axios';
-import CIE10SearchDropdown from '../Shared/BusquedaCIE10.vue';
+import CIE10SearchDropdown from '../Shared/CIE10SearchDropdown.vue';
 
 export default {
   name: 'Aseguradoras',
@@ -459,6 +459,7 @@ h1 {
 /* Estilos para la sección de prueba CIE-10 */
 .test-section {
   margin-bottom: 30px;
+  clear: both;
 }
 
 .test-card {
@@ -467,25 +468,30 @@ h1 {
   padding: 25px;
   color: white;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
 }
 
 .test-card h3 {
   margin: 0 0 10px 0;
   font-size: 1.5rem;
   font-weight: 600;
+  color: white;
 }
 
 .test-description {
   margin: 0 0 20px 0;
   opacity: 0.9;
   font-size: 0.95rem;
+  color: white;
 }
 
 .test-form {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   padding: 20px;
   backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .test-form .form-group {
@@ -497,6 +503,33 @@ h1 {
   margin-bottom: 8px;
   font-weight: 500;
   color: white;
+  font-size: 14px;
+}
+
+/* Asegurar que el dropdown del CIE10 se vea correctamente */
+.test-form :deep(.cie10-search-dropdown) {
+  position: relative;
+  z-index: 100;
+}
+
+.test-form :deep(.cie10-search-dropdown input) {
+  background-color: white;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.test-form :deep(.cie10-search-dropdown input:focus) {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.test-form :deep(.cie10-search-dropdown .absolute) {
+  z-index: 1000;
 }
 
 .selected-diagnostic {
