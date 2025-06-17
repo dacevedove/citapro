@@ -897,7 +897,7 @@ export default {
 }
 
 .progress-step.active span {
-  color: #28a745;
+  color: var(--primary-color);
 }
 
 .progress-line {
