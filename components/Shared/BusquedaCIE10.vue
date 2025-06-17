@@ -1,17 +1,17 @@
 <template>
   <div class="cie10-search-dropdown" ref="dropdownRef">
-    <div class="relative">
+    <div class="search-container">
       <!-- Input de búsqueda -->
-      <div class="relative">
+      <div class="input-wrapper">
         <input
           ref="searchInput"
           v-model="searchQuery"
           type="text"
           :placeholder="placeholder"
-          class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          class="form-control search-input"
           :class="{
-            'border-red-500': hasError,
-            'border-green-500': selectedItem && !hasError
+            'error': hasError,
+            'success': selectedItem && !hasError
           }"
           @focus="handleFocus"
           @blur="handleBlur"
@@ -20,87 +20,74 @@
         />
         
         <!-- Icono de búsqueda/limpiar -->
-        <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+        <div class="input-icon">
           <button
             v-if="selectedItem"
             @click="clearSelection"
-            class="text-gray-400 hover:text-gray-600 transition-colors"
+            class="clear-btn"
             type="button"
+            title="Limpiar selección"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
+            <i class="fas fa-times"></i>
           </button>
-          <svg v-else class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-          </svg>
+          <i v-else class="fas fa-search search-icon"></i>
         </div>
       </div>
 
       <!-- Dropdown de resultados -->
-      <transition
-        enter-active-class="transition ease-out duration-200"
-        enter-from-class="opacity-0 translate-y-1"
-        enter-to-class="opacity-100 translate-y-0"
-        leave-active-class="transition ease-in duration-150"
-        leave-from-class="opacity-100 translate-y-0"
-        leave-to-class="opacity-0 translate-y-1"
-      >
+      <transition name="dropdown-fade">
         <div
           v-if="showDropdown && (filteredResults.length > 0 || loading || searchQuery.length > 0)"
-          class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+          class="dropdown-menu"
         >
           <!-- Loading state -->
-          <div v-if="loading" class="p-4 text-center text-gray-500">
-            <div class="inline-flex items-center">
-              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Buscando...
+          <div v-if="loading" class="dropdown-loading">
+            <div class="loading-content">
+              <div class="spinner"></div>
+              <span>Buscando códigos CIE-10...</span>
             </div>
           </div>
 
           <!-- No results -->
-          <div v-else-if="searchQuery.length > 0 && filteredResults.length === 0" class="p-4 text-center text-gray-500">
-            No se encontraron códigos CIE-10 que coincidan con "{{ searchQuery }}"
+          <div v-else-if="searchQuery.length > 0 && filteredResults.length === 0" class="dropdown-empty">
+            <i class="fas fa-search"></i>
+            <p>No se encontraron códigos que coincidan con "<strong>{{ searchQuery }}</strong>"</p>
           </div>
 
           <!-- Resultados -->
-          <div v-else-if="filteredResults.length > 0">
+          <div v-else-if="filteredResults.length > 0" class="dropdown-results">
             <div
               v-for="(result, index) in filteredResults"
               :key="result.item.code"
               @click="selectItem(result.item)"
               @mouseenter="highlightedIndex = index"
-              class="px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+              class="dropdown-item"
               :class="{
-                'bg-blue-50 text-blue-900': highlightedIndex === index,
-                'hover:bg-gray-50': highlightedIndex !== index
+                'highlighted': highlightedIndex === index
               }"
             >
-              <div class="flex items-start space-x-3">
+              <div class="item-content">
                 <!-- Indicador de nivel -->
-                <div class="flex-shrink-0 mt-1">
+                <div class="level-indicator">
                   <span 
-                    class="inline-block w-2 h-2 rounded-full"
-                    :class="getLevelColor(result.item.level)"
+                    class="level-dot"
+                    :class="getLevelColorClass(result.item.level)"
                   ></span>
                 </div>
                 
-                <div class="flex-1 min-w-0">
+                <div class="item-details">
                   <!-- Código CIE-10 -->
-                  <div class="flex items-center space-x-2">
-                    <span class="font-mono text-sm font-medium text-blue-600">
+                  <div class="item-header">
+                    <span class="cie-code">
                       {{ result.item.code }}
                     </span>
-                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    <span class="level-badge">
                       Nivel {{ result.item.level }}
                     </span>
                   </div>
                   
                   <!-- Descripción con resaltado -->
-                  <div class="mt-1 text-sm text-gray-700">
+                  <div class="item-description">
                     <span v-html="highlightMatch(result.item.description, searchQuery)"></span>
                   </div>
                 </div>
@@ -109,41 +96,40 @@
           </div>
 
           <!-- Hint de navegación -->
-          <div v-if="filteredResults.length > 0" class="px-4 py-2 bg-gray-50 border-t text-xs text-gray-500">
-            Usa ↑↓ para navegar, Enter para seleccionar, Esc para cerrar
+          <div v-if="filteredResults.length > 0" class="dropdown-hint">
+            <small>
+              <i class="fas fa-keyboard"></i>
+              Usa ↑↓ para navegar, Enter para seleccionar, Esc para cerrar
+            </small>
           </div>
         </div>
       </transition>
     </div>
 
-    <!-- Valor seleccionado (mostrar debajo del input si está seleccionado) -->
-    <div v-if="selectedItem && !showDropdown" class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-      <div class="flex items-start justify-between">
-        <div class="flex-1">
-          <div class="flex items-center space-x-2 mb-1">
-            <span class="font-mono text-sm font-medium text-blue-700">
-              {{ selectedItem.code }}
-            </span>
-            <span class="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-              Nivel {{ selectedItem.level }}
-            </span>
+    <!-- Valor seleccionado -->
+    <div v-if="selectedItem && !showDropdown" class="selected-item">
+      <div class="selected-content">
+        <div class="selected-main">
+          <div class="selected-header">
+            <span class="selected-code">{{ selectedItem.code }}</span>
+            <span class="selected-level">Nivel {{ selectedItem.level }}</span>
           </div>
-          <p class="text-sm text-blue-700">{{ selectedItem.description }}</p>
+          <p class="selected-description">{{ selectedItem.description }}</p>
         </div>
         <button
           @click="clearSelection"
-          class="ml-2 text-blue-400 hover:text-blue-600 transition-colors"
+          class="selected-clear"
           type="button"
+          title="Limpiar selección"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
+          <i class="fas fa-times"></i>
         </button>
       </div>
     </div>
 
     <!-- Error message -->
-    <div v-if="hasError && errorMessage" class="mt-1 text-sm text-red-600">
+    <div v-if="hasError && errorMessage" class="error-message">
+      <i class="fas fa-exclamation-triangle"></i>
       {{ errorMessage }}
     </div>
   </div>
@@ -151,7 +137,6 @@
 
 <script>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import Fuse from 'fuse.js'
 
 export default {
   name: 'CIE10SearchDropdown',
@@ -192,9 +177,8 @@ export default {
     const dropdownRef = ref(null)
     const searchInput = ref(null)
     
-    // Datos CIE-10 y Fuse instance
+    // Datos CIE-10
     const cie10Data = ref([])
-    const fuse = ref(null)
     
     // Computed properties
     const hasError = computed(() => {
@@ -202,45 +186,77 @@ export default {
     })
     
     const filteredResults = computed(() => {
-      if (!fuse.value || searchQuery.value.length < props.minSearchLength) {
+      if (searchQuery.value.length < props.minSearchLength) {
         return []
       }
       
-      const results = fuse.value.search(searchQuery.value)
-      return results.slice(0, props.maxResults)
+      const query = searchQuery.value.toLowerCase()
+      const results = cie10Data.value
+        .filter(item => 
+          item.code.toLowerCase().includes(query) || 
+          item.description.toLowerCase().includes(query)
+        )
+        .map(item => ({ item, score: 1 }))
+        .slice(0, props.maxResults)
+      
+      return results
     })
     
-    // Cargar datos CIE-10
+    // Cargar datos CIE-10 (simulados para demo)
     const loadCIE10Data = async () => {
       try {
         loading.value = true
-        // Ajusta esta ruta según donde tengas el archivo JSON
-        const response = await fetch('/data/cie10.json')
-        const data = await response.json()
         
-        cie10Data.value = data
+        // Datos simulados - en producción cargarías desde un archivo JSON o API
+        const simulatedData = [
+          { code: 'A00', description: 'Cólera', level: 1 },
+          { code: 'A00.0', description: 'Cólera debida a Vibrio cholerae 01, biotipo cholerae', level: 2 },
+          { code: 'A00.1', description: 'Cólera debida a Vibrio cholerae 01, biotipo El Tor', level: 2 },
+          { code: 'A00.9', description: 'Cólera, no especificado', level: 2 },
+          { code: 'A01', description: 'Fiebres tifoidea y paratifoidea', level: 1 },
+          { code: 'A01.0', description: 'Fiebre tifoidea', level: 2 },
+          { code: 'A01.1', description: 'Fiebre paratifoidea A', level: 2 },
+          { code: 'A01.2', description: 'Fiebre paratifoidea B', level: 2 },
+          { code: 'A01.3', description: 'Fiebre paratifoidea C', level: 2 },
+          { code: 'A01.4', description: 'Fiebre paratifoidea, no especificada', level: 2 },
+          { code: 'B00', description: 'Infecciones herpéticas', level: 1 },
+          { code: 'B00.0', description: 'Eczema herpético', level: 2 },
+          { code: 'B00.1', description: 'Dermatitis vesicular debida a virus del herpes', level: 2 },
+          { code: 'B00.2', description: 'Gingivoestomatitis y faringoamigdalitis herpéticas', level: 2 },
+          { code: 'C00', description: 'Tumor maligno del labio', level: 1 },
+          { code: 'C00.0', description: 'Tumor maligno del labio superior, cara externa', level: 2 },
+          { code: 'C00.1', description: 'Tumor maligno del labio inferior, cara externa', level: 2 },
+          { code: 'D50', description: 'Anemia por deficiencia de hierro', level: 1 },
+          { code: 'D50.0', description: 'Anemia por deficiencia de hierro secundaria a pérdida de sangre (crónica)', level: 2 },
+          { code: 'D50.1', description: 'Anemia sideropénica disbásica', level: 2 },
+          { code: 'E10', description: 'Diabetes mellitus tipo 1', level: 1 },
+          { code: 'E10.0', description: 'Diabetes mellitus tipo 1 con coma', level: 2 },
+          { code: 'E10.1', description: 'Diabetes mellitus tipo 1 con cetoacidosis', level: 2 },
+          { code: 'E11', description: 'Diabetes mellitus tipo 2', level: 1 },
+          { code: 'E11.0', description: 'Diabetes mellitus tipo 2 con coma', level: 2 },
+          { code: 'F00', description: 'Demencia en la enfermedad de Alzheimer', level: 1 },
+          { code: 'G00', description: 'Meningitis bacteriana, no clasificada en otra parte', level: 1 },
+          { code: 'H00', description: 'Orzuelo y chalazión', level: 1 },
+          { code: 'I00', description: 'Fiebre reumática sin mención de complicación cardíaca', level: 1 },
+          { code: 'J00', description: 'Rinofaringitis aguda [resfriado común]', level: 1 },
+          { code: 'K00', description: 'Trastornos del desarrollo y de la erupción de los dientes', level: 1 },
+          { code: 'L00', description: 'Síndrome de la piel escaldada estafilocócica', level: 1 },
+          { code: 'M00', description: 'Artritis piógena', level: 1 },
+          { code: 'N00', description: 'Síndrome nefrítico agudo', level: 1 },
+          { code: 'O00', description: 'Embarazo ectópico', level: 1 },
+          { code: 'P00', description: 'Feto y recién nacido afectados por trastornos maternos no relacionados necesariamente con el embarazo actual', level: 1 },
+          { code: 'Q00', description: 'Anencefalia y malformaciones similares', level: 1 },
+          { code: 'R00', description: 'Anormalidades del latido cardíaco', level: 1 },
+          { code: 'S00', description: 'Traumatismo superficial de la cabeza', level: 1 },
+          { code: 'T00', description: 'Traumatismos superficiales que afectan múltiples regiones del cuerpo', level: 1 },
+          { code: 'V00', description: 'Peatón lesionado en accidente de transporte', level: 1 },
+          { code: 'W00', description: 'Caída en el mismo nivel por hielo y nieve', level: 1 },
+          { code: 'X00', description: 'Exposición a fuego no controlado en edificio u otra construcción', level: 1 },
+          { code: 'Y00', description: 'Envenenamiento por analgésicos no narcóticos, antipiréticos y antirreumáticos, intención no determinada', level: 1 },
+          { code: 'Z00', description: 'Examen general e investigación de personas sin quejas o sin diagnóstico informado', level: 1 }
+        ]
         
-        // Configurar Fuse.js para búsqueda optimizada
-        fuse.value = new Fuse(data, {
-          keys: [
-            {
-              name: 'code',
-              weight: 0.4
-            },
-            {
-              name: 'description',
-              weight: 0.6
-            }
-          ],
-          threshold: 0.3, // Qué tan estricta es la búsqueda (0 = exacta, 1 = muy flexible)
-          distance: 100,   // Qué tan lejos pueden estar los caracteres
-          includeScore: true,
-          includeMatches: true,
-          minMatchCharLength: 2,
-          shouldSort: true,
-          findAllMatches: false,
-          useExtendedSearch: false
-        })
+        cie10Data.value = simulatedData
       } catch (error) {
         console.error('Error cargando datos CIE-10:', error)
       } finally {
@@ -257,7 +273,6 @@ export default {
     }
     
     const handleBlur = () => {
-      // Delay para permitir que el click en una opción funcione
       setTimeout(() => {
         showDropdown.value = false
         if (selectedItem.value) {
@@ -273,7 +288,6 @@ export default {
       const value = event.target.value
       searchQuery.value = value
       
-      // Si el usuario está escribiendo, limpiar la selección actual
       if (selectedItem.value && value !== selectedItem.value.code) {
         clearSelection()
       }
@@ -320,7 +334,6 @@ export default {
       showDropdown.value = false
       highlightedIndex.value = -1
       
-      // Emitir eventos
       emit('update:modelValue', item)
       emit('select', item)
       
@@ -344,23 +357,23 @@ export default {
     }
     
     // Utilidades de visualización
-    const getLevelColor = (level) => {
+    const getLevelColorClass = (level) => {
       const colors = {
-        0: 'bg-purple-500',
-        1: 'bg-blue-500',
-        2: 'bg-green-500',
-        3: 'bg-yellow-500',
-        4: 'bg-orange-500',
-        5: 'bg-red-500'
+        0: 'level-0',
+        1: 'level-1',
+        2: 'level-2',
+        3: 'level-3',
+        4: 'level-4',
+        5: 'level-5'
       }
-      return colors[level] || 'bg-gray-500'
+      return colors[level] || 'level-default'
     }
     
     const highlightMatch = (text, query) => {
       if (!query || query.length < 2) return text
       
       const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
-      return text.replace(regex, '<mark class="bg-yellow-200 font-medium">$1</mark>')
+      return text.replace(regex, '<mark>$1</mark>')
     }
     
     // Click outside handler
@@ -376,7 +389,6 @@ export default {
         selectedItem.value = newValue
         searchQuery.value = newValue.code
       } else if (typeof newValue === 'string') {
-        // Si se pasa un código, buscar el objeto completo
         const found = cie10Data.value.find(item => item.code === newValue)
         if (found) {
           selectedItem.value = found
@@ -399,7 +411,6 @@ export default {
     })
     
     return {
-      // Referencias
       searchQuery,
       selectedItem,
       showDropdown,
@@ -407,19 +418,15 @@ export default {
       highlightedIndex,
       dropdownRef,
       searchInput,
-      
-      // Computed
       hasError,
       filteredResults,
-      
-      // Métodos
       handleFocus,
       handleBlur,
       handleInput,
       handleKeyDown,
       selectItem,
       clearSelection,
-      getLevelColor,
+      getLevelColorClass,
       highlightMatch
     }
   }
@@ -427,33 +434,425 @@ export default {
 </script>
 
 <style scoped>
-/* Estilos adicionales si son necesarios */
+/* Variables CSS para mantener consistencia */
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --success-color: #28a745;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #17a2b8;
+  --light-color: #f8f9fa;
+  --dark-color: #343a40;
+  --border-color: #ced4da;
+  --hover-color: #e9ecef;
+}
+
 .cie10-search-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+/* Input Container */
+.search-container {
   position: relative;
 }
 
-mark {
-  padding: 0;
-  background-color: #fef08a;
-  border-radius: 2px;
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-/* Scrollbar personalizado para el dropdown */
-.cie10-search-dropdown ::-webkit-scrollbar {
+.search-input {
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  background-color: white;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.search-input.error {
+  border-color: var(--danger-color);
+}
+
+.search-input.error:focus {
+  border-color: var(--danger-color);
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+}
+
+.search-input.success {
+  border-color: var(--success-color);
+}
+
+.input-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-icon {
+  color: var(--secondary-color);
+  font-size: 14px;
+}
+
+.clear-btn {
+  background: none;
+  border: none;
+  color: var(--secondary-color);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.clear-btn:hover {
+  color: var(--danger-color);
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 2px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Loading State */
+.dropdown-loading {
+  padding: 20px;
+  text-align: center;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--secondary-color);
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--light-color);
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.dropdown-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--secondary-color);
+}
+
+.dropdown-empty i {
+  font-size: 24px;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.dropdown-empty p {
+  margin: 0;
+}
+
+/* Results */
+.dropdown-results {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.dropdown-item {
+  padding: 12px 15px;
+  cursor: pointer;
+  border-bottom: 1px solid #f8f9fa;
+  transition: all 0.2s ease;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover,
+.dropdown-item.highlighted {
+  background-color: var(--light-color);
+}
+
+.item-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.level-indicator {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.level-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.level-0 { background-color: #6f42c1; }
+.level-1 { background-color: var(--primary-color); }
+.level-2 { background-color: var(--success-color); }
+.level-3 { background-color: var(--warning-color); }
+.level-4 { background-color: #fd7e14; }
+.level-5 { background-color: var(--danger-color); }
+.level-default { background-color: var(--secondary-color); }
+
+.item-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.cie-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: var(--primary-color);
+  font-size: 14px;
+}
+
+.level-badge {
+  background-color: var(--light-color);
+  color: var(--secondary-color);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.item-description {
+  color: var(--dark-color);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Dropdown Hint */
+.dropdown-hint {
+  background-color: var(--light-color);
+  border-top: 1px solid var(--border-color);
+  padding: 8px 15px;
+  color: var(--secondary-color);
+}
+
+.dropdown-hint i {
+  margin-right: 5px;
+}
+
+/* Selected Item */
+.selected-item {
+  margin-top: 10px;
+  background-color: #e3f2fd;
+  border: 1px solid #2196f3;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.selected-content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.selected-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.selected-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.selected-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #1976d2;
+  font-size: 14px;
+}
+
+.selected-level {
+  background-color: #bbdefb;
+  color: #1976d2;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.selected-description {
+  color: #1976d2;
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.selected-clear {
+  background: none;
+  border: none;
+  color: #1976d2;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.selected-clear:hover {
+  background-color: rgba(25, 118, 210, 0.1);
+}
+
+/* Error Message */
+.error-message {
+  margin-top: 5px;
+  color: var(--danger-color);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Highlight Text */
+mark {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+
+/* Transitions */
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+  transition: all 0.2s ease;
+}
+
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.dropdown-fade-enter-to,
+.dropdown-fade-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Scrollbar personalizado */
+.dropdown-menu::-webkit-scrollbar {
   width: 6px;
 }
 
-.cie10-search-dropdown ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+.dropdown-menu::-webkit-scrollbar-track {
+  background: var(--light-color);
   border-radius: 3px;
 }
 
-.cie10-search-dropdown ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+.dropdown-menu::-webkit-scrollbar-thumb {
+  background: var(--border-color);
   border-radius: 3px;
 }
 
-.cie10-search-dropdown ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+.dropdown-menu::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary-color);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .search-input {
+    font-size: 16px; /* Evita zoom en iOS */
+    padding: 12px 40px 12px 15px;
+  }
+  
+  .dropdown-item {
+    padding: 15px;
+  }
+  
+  .item-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .selected-content {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .selected-clear {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 576px) {
+  .dropdown-menu {
+    max-height: 250px;
+  }
+  
+  .item-content {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .level-indicator {
+    order: 2;
+  }
+  
+  .item-details {
+    order: 1;
+  }
 }
 </style>
