@@ -881,7 +881,7 @@ export default {
 }
 
 .progress-step.active .step-number {
-  background: #007bff;
+  background: var(--primary-color);
   color: white;
 }
 
@@ -897,7 +897,7 @@ export default {
 }
 
 .progress-step.active span {
-  color: #007bff;
+  color: #28a745;
 }
 
 .progress-line {
@@ -1368,12 +1368,12 @@ export default {
 }
 
 .btn-primary {
-  background: #007bff;
+  background: var(--primary-color);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #0056b3;
+  background:  var(--primary-color);
 }
 
 .btn-success {
