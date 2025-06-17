@@ -398,13 +398,13 @@ export default {
 }
 
 .menu-item-highlight:hover {
-  background: linear-gradient(135deg, #218838, #1ea085);
+  background: #25973f;
   transform: translateY(-1px);
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
 }
 
 .menu-item-highlight.router-link-active {
-  background: linear-gradient(135deg, #1e7e34, #198754);
+  background: #28a745;
 }
 
 /* Estilos para submenús */
