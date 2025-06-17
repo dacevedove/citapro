@@ -65,6 +65,14 @@
               <span class="diagnostic-description">{{ diagnosticoPrueba.description }}</span>
               <span class="diagnostic-level">Nivel {{ diagnosticoPrueba.level }}</span>
             </div>
+            
+            <!-- Información adicional de debug -->
+            <div class="debug-info">
+              <small>
+                <strong>Datos del objeto:</strong>
+                <pre>{{ JSON.stringify(diagnosticoPrueba, null, 2) }}</pre>
+              </small>
+            </div>
           </div>
           
           <!-- Botones de prueba -->
@@ -82,6 +90,31 @@
             >
               🎲 Seleccionar Diagnóstico Aleatorio
             </button>
+            <button 
+              class="btn btn-success btn-sm" 
+              @click="probarBusquedaEspecifica"
+            >
+              🔍 Buscar "diabetes"
+            </button>
+            <button 
+              class="btn btn-warning btn-sm" 
+              @click="probarValidacion"
+            >
+              ⚠️ Probar Validación
+            </button>
+          </div>
+          
+          <!-- Estado de validación -->
+          <div v-if="mostrarValidacion" class="validation-test">
+            <h5>🧪 Prueba de Validación:</h5>
+            <CIE10SearchDropdown
+              v-model="diagnosticoValidacion"
+              placeholder="Campo requerido para prueba..."
+              :required="true"
+              error-message="Este campo es obligatorio"
+              @select="handleValidacionSelect"
+              @clear="handleValidacionClear"
+            />
           </div>
         </div>
       </div>
@@ -239,7 +272,9 @@ export default {
       },
       aseguradoraEliminar: null,
       // Datos para prueba de CIE-10
-      diagnosticoPrueba: null
+      diagnosticoPrueba: null,
+      diagnosticoValidacion: null,
+      mostrarValidacion: false
     }
   },
   mounted() {
@@ -402,11 +437,20 @@ export default {
     // Métodos para prueba de CIE-10
     handleDiagnosticoSelect(diagnostico) {
       console.log('🎯 Diagnóstico seleccionado:', diagnostico);
-      // Aquí puedes agregar lógica adicional si necesitas
+      console.log('Tipo de objeto:', typeof diagnostico);
+      console.log('Propiedades:', Object.keys(diagnostico));
     },
     
     handleDiagnosticoClear() {
       console.log('🗑️ Diagnóstico limpiado');
+    },
+    
+    handleValidacionSelect(diagnostico) {
+      console.log('✅ Validación - Diagnóstico seleccionado:', diagnostico);
+    },
+    
+    handleValidacionClear() {
+      console.log('❌ Validación - Diagnóstico limpiado');
     },
     
     limpiarPrueba() {
@@ -415,18 +459,33 @@ export default {
     },
     
     probarDiagnosticoAleatorio() {
-      // Simular algunos diagnósticos de prueba
+      // Usar datos más realistas que coincidan con el componente
       const diagnosticosPrueba = [
         { code: 'A00', description: 'Cólera', level: 1 },
+        { code: 'A00.0', description: 'Cólera debida a Vibrio cholerae 01, biotipo cholerae', level: 2 },
         { code: 'B00', description: 'Infecciones herpéticas', level: 1 },
-        { code: 'C00', description: 'Tumor maligno del labio', level: 1 },
-        { code: 'D50', description: 'Anemia por deficiencia de hierro', level: 1 },
-        { code: 'E10', description: 'Diabetes mellitus tipo 1', level: 1 }
+        { code: 'E10', description: 'Diabetes mellitus tipo 1', level: 1 },
+        { code: 'E11', description: 'Diabetes mellitus tipo 2', level: 1 },
+        { code: 'J00', description: 'Rinofaringitis aguda [resfriado común]', level: 1 },
+        { code: 'I00', description: 'Fiebre reumática sin mención de complicación cardíaca', level: 1 }
       ];
       
       const diagnosticoAleatorio = diagnosticosPrueba[Math.floor(Math.random() * diagnosticosPrueba.length)];
       this.diagnosticoPrueba = diagnosticoAleatorio;
       console.log('🎲 Diagnóstico aleatorio seleccionado:', diagnosticoAleatorio);
+    },
+    
+    probarBusquedaEspecifica() {
+      // Simular selección directa de diabetes
+      const diabetes = { code: 'E11', description: 'Diabetes mellitus tipo 2', level: 1 };
+      this.diagnosticoPrueba = diabetes;
+      console.log('🔍 Búsqueda específica - Diabetes seleccionada:', diabetes);
+    },
+    
+    probarValidacion() {
+      this.mostrarValidacion = !this.mostrarValidacion;
+      this.diagnosticoValidacion = null;
+      console.log('⚠️ Prueba de validación:', this.mostrarValidacion ? 'activada' : 'desactivada');
     }
   }
 }
@@ -519,30 +578,42 @@ h1 {
   z-index: 100;
 }
 
-.test-form :deep(.cie10-search-dropdown input) {
+.test-form :deep(.dropdown-menu) {
+  z-index: 1001 !important;
+  position: absolute !important;
+}
+
+/* Asegurar que el input del componente tenga el estilo correcto */
+.test-form :deep(.cie10-search-dropdown .search-input) {
   background-color: white !important;
   color: #333 !important;
   border: 1px solid #ddd !important;
-  border-radius: 6px !important;
-  padding: 10px 12px !important;
+  border-radius: 4px !important;
+  padding: 10px 40px 10px 12px !important;
   font-size: 14px !important;
   width: 100% !important;
   box-sizing: border-box;
 }
 
-.test-form :deep(.cie10-search-dropdown input:focus) {
+.test-form :deep(.cie10-search-dropdown .search-input:focus) {
   outline: none !important;
-  border-color: #4f46e5 !important;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+  border-color: #007bff !important;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25) !important;
 }
 
-.test-form :deep(.cie10-search-dropdown .absolute) {
-  z-index: 1001 !important;
-  position: absolute !important;
+/* Estilo para el componente seleccionado */
+.test-form :deep(.selected-item) {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #007bff !important;
+  color: #333 !important;
 }
 
-.test-form :deep(.cie10-search-dropdown .z-50) {
-  z-index: 1001 !important;
+.test-form :deep(.selected-code) {
+  color: #007bff !important;
+}
+
+.test-form :deep(.selected-description) {
+  color: #333 !important;
 }
 
 .selected-diagnostic {
@@ -588,6 +659,41 @@ h1 {
   border-radius: 4px;
   font-size: 0.8rem;
   font-weight: 500;
+}
+
+/* Estilos adicionales para las nuevas funciones de prueba */
+.debug-info {
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  border-left: 3px solid #fbbf24;
+}
+
+.debug-info pre {
+  background: rgba(0, 0, 0, 0.2);
+  color: #fbbf24;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  margin: 5px 0 0 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.validation-test {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border-left: 4px solid #f59e0b;
+}
+
+.validation-test h5 {
+  margin: 0 0 15px 0;
+  color: #fbbf24;
+  font-size: 1rem;
 }
 
 .test-actions {
@@ -712,6 +818,18 @@ h1 {
   border: none;
 }
 
+.btn-success {
+  background-color: #28a745;
+  color: white;
+  border: none;
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  color: #212529;
+  border: none;
+}
+
 /* Estilos para el modal */
 .modal {
   position: fixed;
@@ -780,6 +898,10 @@ h1 {
     flex-direction: column;
   }
   
+  .debug-info pre {
+    font-size: 10px;
+  }
+  
   .test-form {
     padding: 15px;
   }
@@ -794,4 +916,43 @@ h1 {
     gap: 10px;
   }
 }
-</style>
+
+@media (max-width: 576px) {
+  .aseguradoras-container {
+    padding: 15px;
+  }
+  
+  .test-card {
+    padding: 20px;
+  }
+  
+  .test-form {
+    padding: 15px;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .modal-body {
+    padding: 15px;
+  }
+  
+  .btn-sm {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .search-box {
+    flex-direction: column;
+  }
+  
+  .search-box input {
+    border-radius: 4px 4px 0 0;
+  }
+  
+  .search-btn {
+    border-radius: 0 0 4px 4px;
+  }
+}
