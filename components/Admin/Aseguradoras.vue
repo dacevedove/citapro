@@ -46,13 +46,15 @@
         <div class="test-form">
           <div class="form-group">
             <label for="cie10-test">Diagnóstico de Prueba:</label>
-            <CIE10SearchDropdown
-              v-model="diagnosticoPrueba"
-              placeholder="Buscar código CIE-10 para prueba..."
-              :required="false"
-              @select="handleDiagnosticoSelect"
-              @clear="handleDiagnosticoClear"
-            />
+            <div class="input-container">
+              <CIE10SearchDropdown
+                v-model="diagnosticoPrueba"
+                placeholder="Buscar código CIE-10 para prueba..."
+                :required="false"
+                @select="handleDiagnosticoSelect"
+                @clear="handleDiagnosticoClear"
+              />
+            </div>
           </div>
           
           <!-- Mostrar diagnóstico seleccionado -->
@@ -207,7 +209,7 @@
 
 <script>
 import axios from 'axios';
-import CIE10SearchDropdown from '../Shared/CIE10SearchDropdown.vue';
+import CIE10SearchDropdown from '../Shared/BusquedaCIE10.vue';
 
 export default {
   name: 'Aseguradoras',
@@ -507,29 +509,40 @@ h1 {
 }
 
 /* Asegurar que el dropdown del CIE10 se vea correctamente */
+.test-form .input-container {
+  position: relative;
+  z-index: 100;
+}
+
 .test-form :deep(.cie10-search-dropdown) {
   position: relative;
   z-index: 100;
 }
 
 .test-form :deep(.cie10-search-dropdown input) {
-  background-color: white;
-  color: #333;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 10px 12px;
-  font-size: 14px;
-  width: 100%;
+  background-color: white !important;
+  color: #333 !important;
+  border: 1px solid #ddd !important;
+  border-radius: 6px !important;
+  padding: 10px 12px !important;
+  font-size: 14px !important;
+  width: 100% !important;
+  box-sizing: border-box;
 }
 
 .test-form :deep(.cie10-search-dropdown input:focus) {
-  outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  outline: none !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
 }
 
 .test-form :deep(.cie10-search-dropdown .absolute) {
-  z-index: 1000;
+  z-index: 1001 !important;
+  position: absolute !important;
+}
+
+.test-form :deep(.cie10-search-dropdown .z-50) {
+  z-index: 1001 !important;
 }
 
 .selected-diagnostic {
