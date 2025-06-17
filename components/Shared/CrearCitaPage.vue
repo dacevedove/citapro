@@ -837,7 +837,6 @@ export default {
 }
 
 .page-content {
-  max-width: 800px;
   margin: 0 auto;
   padding: 40px 20px;
 }
@@ -852,6 +851,7 @@ export default {
 /* Progress Bar */
 .progress-bar {
   display: flex;
+  flex-direction:row;
   align-items: center;
   padding: 30px 40px;
   background: #f8f9fa;
