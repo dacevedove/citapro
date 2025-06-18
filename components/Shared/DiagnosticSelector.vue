@@ -51,9 +51,6 @@
           <div v-else-if="searchResults.length === 0 && searchQuery" class="dropdown-empty">
             <i class="fas fa-search"></i>
             <span>No se encontraron diagnósticos para "{{ searchQuery }}"</span>
-            <div v-if="debugInfo" class="debug-info">
-              <small>Debug: {{ debugInfo }}</small>
-            </div>
           </div>
           
           <div v-else class="dropdown-results">
@@ -163,28 +160,22 @@ let cie10Data = [];
 
 async function loadCie10Data() {
   try {
-    console.log('🔄 Intentando cargar datos CIE-10...');
-    
-    // Intentar múltiples rutas
     const possiblePaths = [
-      '/data/cie10.json',        // public/data/
-      '../data/cie10.json',      // data/ en la raíz del proyecto
-      './data/cie10.json',       // data/ relativo
-      '/citas.salu.pro/data/cie10.json'  // Ruta específica de tu proyecto
+      '/data/cie10.json',
+      '../data/cie10.json',
+      './data/cie10.json',
+      '/citas.salu.pro/data/cie10.json'
     ];
     
     for (const path of possiblePaths) {
       try {
-        console.log(`🔄 Probando ruta: ${path}`);
         const response = await fetch(path);
         
         if (response.ok) {
           const data = await response.json();
-          console.log(`✅ Datos CIE-10 cargados desde ${path}:`, data.length, 'registros');
           return data;
         }
       } catch (error) {
-        console.log(`❌ Fallo en ${path}:`, error.message);
         continue;
       }
     }
@@ -192,8 +183,6 @@ async function loadCie10Data() {
     throw new Error('No se encontró el archivo en ninguna ruta');
     
   } catch (error) {
-    console.error('❌ Error al cargar datos CIE-10:', error);
-    // En lugar de datos fallback, lanzar el error
     throw error;
   }
 }
@@ -202,19 +191,16 @@ export default {
   name: 'DiagnosticSelector',
   
   props: {
-    // Diagnósticos ya seleccionados (array de objetos)
     modelValue: {
       type: Array,
       default: () => []
     },
     
-    // Datos CIE-10 (array de objetos) - opcional, usa datos internos por defecto
     diagnosticData: {
       type: Array,
       default: null
     },
     
-    // Configuración
     label: {
       type: String,
       default: 'Diagnósticos CIE-10'
@@ -232,7 +218,7 @@ export default {
     
     maxSelections: {
       type: Number,
-      default: null // Sin límite por defecto
+      default: null
     },
     
     disabled: {
@@ -245,7 +231,6 @@ export default {
       default: true
     },
     
-    // Opciones de Fuse.js
     fuseOptions: {
       type: Object,
       default: () => ({})
@@ -264,8 +249,7 @@ export default {
       fuse: null,
       searchTimeout: null,
       dataLoaded: false,
-      loadingData: true,
-      debugInfo: '' // Para mostrar información de debug
+      loadingData: true
     };
   },
   
@@ -274,10 +258,8 @@ export default {
       return this.modelValue || [];
     },
     
-    // Usar datos proporcionados o datos internos
     activeDiagnosticData() {
       const data = this.diagnosticData || cie10Data;
-      console.log('🔄 Computed activeDiagnosticData:', data?.length || 0, 'registros');
       return data;
     },
     
@@ -306,7 +288,6 @@ export default {
   watch: {
     activeDiagnosticData: {
       handler(newData) {
-        console.log('👀 Watching activeDiagnosticData cambió:', newData?.length || 0, 'registros');
         if (newData && newData.length > 0) {
           this.initializeFuse();
         }
@@ -318,40 +299,28 @@ export default {
   async mounted() {
     try {
       this.loadingData = true;
-      console.log('🔄 DiagnosticSelector mounted, iniciando carga de datos...');
       
       if (!this.diagnosticData) {
-        console.log('📥 Cargando datos CIE-10 internos...');
         cie10Data = await loadCie10Data();
-        console.log('📋 Datos cargados exitosamente:', cie10Data.length, 'registros');
         
-        // Verificar que realmente se cargaron datos
         if (!cie10Data || cie10Data.length === 0) {
           throw new Error('Los datos cargados están vacíos');
         }
         
-        // IMPORTANTE: Forzar la inicialización después de cargar los datos
-        console.log('🔧 Forzando inicialización de Fuse.js después de cargar datos...');
         this.initializeFuse();
         
       } else {
-        console.log('📋 Usando datos externos proporcionados:', this.diagnosticData.length, 'registros');
         this.initializeFuse();
       }
       
       this.dataLoaded = true;
-      console.log('✅ DiagnosticSelector listo para usar');
       
     } catch (error) {
-      console.error('❌ Error crítico al cargar datos CIE-10:', error);
-      this.debugInfo = `Error: ${error.message}`;
-      // No cargar datos fallback, mantener el error visible
       this.dataLoaded = false;
     } finally {
       this.loadingData = false;
     }
     
-    // Cerrar dropdown al hacer click fuera
     document.addEventListener('click', this.handleOutsideClick);
   },
   
@@ -364,35 +333,16 @@ export default {
   
   methods: {
     initializeFuse() {
-      // Usar directamente cie10Data si no hay datos externos, 
-      // o usar this.diagnosticData si se proporcionaron
       const data = this.diagnosticData || cie10Data;
       
-      console.log('🔧 Inicializando Fuse.js con', data?.length || 0, 'registros');
-      console.log('📊 Fuente de datos:', this.diagnosticData ? 'externa (props)' : 'interna (cie10Data)');
-      
       if (data && data.length > 0) {
-        // Verificar estructura de los primeros datos
-        console.log('🔍 Muestra de datos:', data.slice(0, 2));
-        
         this.fuse = new Fuse(data, this.defaultFuseOptions);
-        console.log('✅ Fuse.js inicializado correctamente');
-        
-        // Limpiar debug info si se inicializa correctamente
-        this.debugInfo = '';
       } else {
-        console.warn('⚠️ No se puede inicializar Fuse.js - datos vacíos');
-        console.log('🔍 Debug - cie10Data length:', cie10Data?.length || 0);
-        console.log('🔍 Debug - this.diagnosticData length:', this.diagnosticData?.length || 0);
         this.fuse = null;
-        this.debugInfo = 'Datos CIE-10 no disponibles';
       }
     },
     
     onSearchInput() {
-      console.log('🔍 Búsqueda iniciada:', this.searchQuery);
-      
-      // Debounce la búsqueda
       if (this.searchTimeout) {
         clearTimeout(this.searchTimeout);
       }
@@ -403,37 +353,22 @@ export default {
     },
     
     async performSearch() {
-      console.log('🎯 Ejecutando performSearch para:', this.searchQuery);
-      
       if (!this.searchQuery.trim()) {
-        console.log('🔍 Búsqueda vacía, ocultando dropdown');
         this.searchResults = [];
         this.showDropdown = false;
         return;
       }
       
-      // Verificar estado de los datos
-      console.log('📊 Estado actual:', {
-        dataLoaded: this.dataLoaded,
-        fuseInitialized: !!this.fuse,
-        dataLength: this.activeDiagnosticData?.length || 0,
-        searchQuery: this.searchQuery
-      });
-      
       if (!this.dataLoaded) {
-        console.log('⏳ Datos aún no cargados, mostrando loading...');
         this.loading = true;
         this.showDropdown = true;
         return;
       }
       
       if (!this.fuse) {
-        console.log('🔧 Fuse no inicializado, intentando reinicializar...');
         this.initializeFuse();
         
         if (!this.fuse) {
-          console.error('❌ No se pudo inicializar Fuse.js');
-          this.debugInfo = 'Error: Motor de búsqueda no disponible';
           this.searchResults = [];
           this.showDropdown = true;
           return;
@@ -444,23 +379,10 @@ export default {
       this.showDropdown = true;
       
       try {
-        // Simular delay para mostrar loading
         await new Promise(resolve => setTimeout(resolve, 150));
         
-        console.log('🔍 Ejecutando búsqueda con Fuse.js...');
         const fuseResults = this.fuse.search(this.searchQuery);
-        console.log('📋 Resultados de búsqueda:', fuseResults.length);
         
-        // Log de algunos resultados para debug
-        if (fuseResults.length > 0) {
-          console.log('🎯 Primeros 3 resultados:', fuseResults.slice(0, 3).map(r => ({
-            code: r.item.code,
-            description: r.item.description,
-            score: r.score
-          })));
-        }
-        
-        // Procesar resultados de Fuse
         this.searchResults = fuseResults
           .slice(0, this.maxResults)
           .map(result => {
@@ -475,33 +397,26 @@ export default {
             };
           });
         
-        console.log('✅ Resultados procesados:', this.searchResults.length);
         this.selectedIndex = -1;
         
-        // Emitir evento de búsqueda
         this.$emit('search', {
           query: this.searchQuery,
           results: this.searchResults
         });
         
       } catch (error) {
-        console.error('❌ Error en la búsqueda:', error);
         this.searchResults = [];
-        this.debugInfo = `Error en búsqueda: ${error.message}`;
       } finally {
         this.loading = false;
       }
     },
     
     selectDiagnostic(diagnostic) {
-      // Verificar si ya está seleccionado
       if (this.isAlreadySelected(diagnostic)) {
         return;
       }
       
-      // Verificar límite máximo
       if (this.maxSelections && this.selectedDiagnostics.length >= this.maxSelections) {
-        alert(`Solo se pueden seleccionar máximo ${this.maxSelections} diagnósticos`);
         return;
       }
       
@@ -509,7 +424,6 @@ export default {
       this.$emit('update:modelValue', newDiagnostics);
       this.$emit('diagnostic-selected', diagnostic);
       
-      // Limpiar búsqueda
       this.clearSearch();
     },
     
@@ -536,7 +450,6 @@ export default {
       this.searchResults = [];
       this.showDropdown = false;
       this.selectedIndex = -1;
-      this.debugInfo = '';
     },
     
     onFocus() {
@@ -546,7 +459,6 @@ export default {
     },
     
     onBlur() {
-      // Delay para permitir clicks en el dropdown
       setTimeout(() => {
         this.showDropdown = false;
       }, 200);
@@ -589,7 +501,6 @@ export default {
       }
     },
     
-    // Métodos públicos
     focus() {
       this.$refs.searchInput.focus();
     },
@@ -736,16 +647,6 @@ export default {
   padding: 20px;
   color: #6c757d;
   font-style: italic;
-}
-
-.debug-info {
-  margin-top: 8px;
-  padding: 8px;
-  background: #ffe6e6;
-  border: 1px solid #ffcccc;
-  border-radius: 4px;
-  font-size: 11px;
-  color: #d63384;
 }
 
 .dropdown-results {
