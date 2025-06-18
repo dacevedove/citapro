@@ -157,7 +157,7 @@ let cie10Data = [];
 // Carga dinámica del archivo JSON
 async function loadCie10Data() {
   try {
-    const response = await fetch('/data/cie10.json');
+    const response = await fetch('../data/cie10.json');
     const data = await response.json();
     return data;
     
