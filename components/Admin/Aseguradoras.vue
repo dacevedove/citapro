@@ -243,12 +243,10 @@ export default {
     // ==================== MÉTODOS DE PRUEBA - ELIMINAR DESPUÉS ====================
     onDiagnosticSelected(diagnostic) {
       console.log('🩺 Diagnóstico seleccionado:', diagnostic);
-      alert(`Diagnóstico seleccionado: ${diagnostic.code} - ${diagnostic.description}`);
     },
     
     onDiagnosticRemoved(diagnostic) {
       console.log('🗑️ Diagnóstico eliminado:', diagnostic);
-      alert(`Diagnóstico eliminado: ${diagnostic.code}`);
     },
     
     onSearch(searchData) {
