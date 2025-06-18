@@ -4,12 +4,7 @@
     
     <!-- ==================== INICIO SECCIÓN DE PRUEBA ==================== -->
     <!-- ELIMINAR ESTA SECCIÓN COMPLETA DESPUÉS DE PROBAR -->
-    <div class="test-section">
-      <h2>🧪 Prueba del Selector de Diagnósticos CIE-10</h2>
-      <p class="test-description">
-        Esta sección es solo para probar el componente DiagnosticSelector. 
-        <strong>Eliminar después de las pruebas.</strong>
-      </p>
+ 
       
       <div class="diagnostic-test-container">
         <DiagnosticSelector
@@ -22,23 +17,9 @@
           @diagnostic-removed="onDiagnosticRemoved"
           @search="onSearch"
         />
-        
-        <!-- Debug info -->
-        <div v-if="diagnosticosPrueba.length > 0" class="debug-info">
-          <h4>🔍 Debug - Diagnósticos seleccionados:</h4>
-          <pre>{{ JSON.stringify(diagnosticosPrueba, null, 2) }}</pre>
-        </div>
-        
-        <div class="test-actions">
-          <button @click="clearDiagnostics" class="btn btn-outline">
-            <i class="fas fa-trash"></i> Limpiar Diagnósticos
-          </button>
-          <button @click="addSampleDiagnostics" class="btn btn-info">
-            <i class="fas fa-plus"></i> Agregar Ejemplos
-          </button>
-        </div>
+
       </div>
-    </div>
+
     <!-- ==================== FIN SECCIÓN DE PRUEBA ==================== -->
     
     <div class="header-section">
@@ -257,25 +238,7 @@ export default {
       this.diagnosticosPrueba = [];
       console.log('🧹 Diagnósticos limpiados');
     },
-    
-    addSampleDiagnostics() {
-      // Agregar algunos diagnósticos de ejemplo
-      const ejemplos = [
-        {
-          level: 1,
-          code: "E10",
-          description: "Diabetes mellitus insulinodependiente"
-        },
-        {
-          level: 0,
-          code: "I10-I16", 
-          description: "Enfermedades hipertensivas"
-        }
-      ];
-      
-      this.diagnosticosPrueba = [...this.diagnosticosPrueba, ...ejemplos];
-      console.log('📝 Diagnósticos de ejemplo agregados');
-    },
+
     // ==================== FIN MÉTODOS DE PRUEBA ====================
     
     async cargarAseguradoras() {
