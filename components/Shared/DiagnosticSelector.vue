@@ -51,6 +51,9 @@
           <div v-else-if="searchResults.length === 0 && searchQuery" class="dropdown-empty">
             <i class="fas fa-search"></i>
             <span>No se encontraron diagnósticos para "{{ searchQuery }}"</span>
+            <div v-if="debugInfo" class="debug-info">
+              <small>Debug: {{ debugInfo }}</small>
+            </div>
           </div>
           
           <div v-else class="dropdown-results">
@@ -189,9 +192,9 @@ async function loadCie10Data() {
     throw new Error('No se encontró el archivo en ninguna ruta');
     
   } catch (error) {
-    console.warn('⚠️ No se pudo cargar cie10.json desde ninguna ubicación, usando datos de prueba:', error.message);
-    console.log('📝 Datos de prueba cargados:', datosPruebaCie10.length, 'registros');
-    return datosPruebaCie10;
+    console.error('❌ Error al cargar datos CIE-10:', error);
+    // En lugar de datos fallback, lanzar el error
+    throw error;
   }
 }
 
@@ -260,8 +263,9 @@ export default {
       loading: false,
       fuse: null,
       searchTimeout: null,
-      dataLoaded: false,  // Nuevo flag para saber si los datos están listos
-      loadingData: true   // Nuevo flag para mostrar estado de carga inicial
+      dataLoaded: false,
+      loadingData: true,
+      debugInfo: '' // Para mostrar información de debug
     };
   },
   
@@ -300,6 +304,7 @@ export default {
   watch: {
     activeDiagnosticData: {
       handler(newData) {
+        console.log('👀 Watching activeDiagnosticData cambió:', newData?.length || 0, 'registros');
         if (newData && newData.length > 0) {
           this.initializeFuse();
         }
@@ -309,14 +314,21 @@ export default {
   },
   
   async mounted() {
-    // Cargar datos CIE-10 si no se proporcionaron externamente
     try {
       this.loadingData = true;
       console.log('🔄 DiagnosticSelector mounted, iniciando carga de datos...');
       
       if (!this.diagnosticData) {
+        console.log('📥 Cargando datos CIE-10 internos...');
         cie10Data = await loadCie10Data();
-        console.log('📋 Datos cargados:', cie10Data.length, 'registros');
+        console.log('📋 Datos cargados exitosamente:', cie10Data.length, 'registros');
+        
+        // Verificar que realmente se cargaron datos
+        if (!cie10Data || cie10Data.length === 0) {
+          throw new Error('Los datos cargados están vacíos');
+        }
+      } else {
+        console.log('📋 Usando datos externos proporcionados:', this.diagnosticData.length, 'registros');
       }
       
       this.initializeFuse();
@@ -324,11 +336,10 @@ export default {
       console.log('✅ DiagnosticSelector listo para usar');
       
     } catch (error) {
-      console.error('❌ Error al cargar datos CIE-10:', error);
-      // Usar datos de prueba como fallback
-      cie10Data = datosPruebaCie10;
-      this.initializeFuse();
-      this.dataLoaded = true;
+      console.error('❌ Error crítico al cargar datos CIE-10:', error);
+      this.debugInfo = `Error: ${error.message}`;
+      // No cargar datos fallback, mantener el error visible
+      this.dataLoaded = false;
     } finally {
       this.loadingData = false;
     }
@@ -346,12 +357,25 @@ export default {
   
   methods: {
     initializeFuse() {
-      if (this.activeDiagnosticData && this.activeDiagnosticData.length > 0) {
-        this.fuse = new Fuse(this.activeDiagnosticData, this.defaultFuseOptions);
+      const data = this.activeDiagnosticData;
+      console.log('🔧 Inicializando Fuse.js con', data?.length || 0, 'registros');
+      
+      if (data && data.length > 0) {
+        this.fuse = new Fuse(data, this.defaultFuseOptions);
+        console.log('✅ Fuse.js inicializado correctamente');
+        
+        // Limpiar debug info si se inicializa correctamente
+        this.debugInfo = '';
+      } else {
+        console.warn('⚠️ No se puede inicializar Fuse.js - datos vacíos');
+        this.fuse = null;
+        this.debugInfo = 'Datos CIE-10 no disponibles';
       }
     },
     
     onSearchInput() {
+      console.log('🔍 Búsqueda iniciada:', this.searchQuery);
+      
       // Debounce la búsqueda
       if (this.searchTimeout) {
         clearTimeout(this.searchTimeout);
@@ -363,41 +387,39 @@ export default {
     },
     
     async performSearch() {
+      console.log('🎯 Ejecutando performSearch para:', this.searchQuery);
+      
       if (!this.searchQuery.trim()) {
+        console.log('🔍 Búsqueda vacía, ocultando dropdown');
         this.searchResults = [];
         this.showDropdown = false;
         return;
       }
       
-      // Verificar que los datos estén cargados y Fuse esté inicializado
-      if (!this.dataLoaded || !this.fuse) {
-        console.log('⏳ Esperando a que se carguen los datos...');
+      // Verificar estado de los datos
+      console.log('📊 Estado actual:', {
+        dataLoaded: this.dataLoaded,
+        fuseInitialized: !!this.fuse,
+        dataLength: this.activeDiagnosticData?.length || 0,
+        searchQuery: this.searchQuery
+      });
+      
+      if (!this.dataLoaded) {
+        console.log('⏳ Datos aún no cargados, mostrando loading...');
         this.loading = true;
         this.showDropdown = true;
-        
-        // Esperar hasta que los datos estén cargados
-        const maxWait = 5000; // 5 segundos máximo
-        const startTime = Date.now();
-        
-        while (!this.dataLoaded && (Date.now() - startTime) < maxWait) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        if (!this.dataLoaded) {
-          console.error('❌ Timeout: Los datos no se cargaron a tiempo');
-          this.loading = false;
-          this.searchResults = [];
-          return;
-        }
+        return;
       }
       
       if (!this.fuse) {
-        console.warn('⚠️ Fuse.js aún no está inicializado después de cargar datos');
+        console.log('🔧 Fuse no inicializado, intentando reinicializar...');
         this.initializeFuse();
         
         if (!this.fuse) {
           console.error('❌ No se pudo inicializar Fuse.js');
-          this.loading = false;
+          this.debugInfo = 'Error: Motor de búsqueda no disponible';
+          this.searchResults = [];
+          this.showDropdown = true;
           return;
         }
       }
@@ -406,11 +428,21 @@ export default {
       this.showDropdown = true;
       
       try {
-        // Simular delay para mostrar loading (opcional)
+        // Simular delay para mostrar loading
         await new Promise(resolve => setTimeout(resolve, 150));
         
+        console.log('🔍 Ejecutando búsqueda con Fuse.js...');
         const fuseResults = this.fuse.search(this.searchQuery);
-        console.log('🔍 Búsqueda realizada para:', this.searchQuery, '- Resultados:', fuseResults.length);
+        console.log('📋 Resultados de búsqueda:', fuseResults.length);
+        
+        // Log de algunos resultados para debug
+        if (fuseResults.length > 0) {
+          console.log('🎯 Primeros 3 resultados:', fuseResults.slice(0, 3).map(r => ({
+            code: r.item.code,
+            description: r.item.description,
+            score: r.score
+          })));
+        }
         
         // Procesar resultados de Fuse
         this.searchResults = fuseResults
@@ -427,6 +459,7 @@ export default {
             };
           });
         
+        console.log('✅ Resultados procesados:', this.searchResults.length);
         this.selectedIndex = -1;
         
         // Emitir evento de búsqueda
@@ -438,6 +471,7 @@ export default {
       } catch (error) {
         console.error('❌ Error en la búsqueda:', error);
         this.searchResults = [];
+        this.debugInfo = `Error en búsqueda: ${error.message}`;
       } finally {
         this.loading = false;
       }
@@ -486,6 +520,7 @@ export default {
       this.searchResults = [];
       this.showDropdown = false;
       this.selectedIndex = -1;
+      this.debugInfo = '';
     },
     
     onFocus() {
@@ -678,12 +713,23 @@ export default {
 
 .dropdown-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 20px;
   color: #6c757d;
   font-style: italic;
+}
+
+.debug-info {
+  margin-top: 8px;
+  padding: 8px;
+  background: #ffe6e6;
+  border: 1px solid #ffcccc;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #d63384;
 }
 
 .dropdown-results {
@@ -1061,203 +1107,4 @@ export default {
 .dropdown-item-selected {
   background-color: rgba(0, 123, 255, 0.1);
   border-left: 3px solid #007bff;
- color:white;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  transition: all 0.2s;
-  margin-left: 12px;
 }
-
-.remove-button:hover {
-  background: #c82333;
-  transform: scale(1.1);
-}
-
-.selected-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Estado vacío */
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  background: white;
-  border: 2px dashed #dee2e6;
-  border-radius: 8px;
-  color: #6c757d;
-}
-
-.empty-state i {
-  font-size: 32px;
-  margin-bottom: 12px;
-  opacity: 0.5;
-}
-
-.empty-state h4 {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.empty-state p {
-  margin: 0;
-  font-size: 14px;
-}
-
-/* Botones */
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 11px;
-}
-
-.btn-outline {
-  background-color: transparent;
-  border: 1px solid #dee2e6;
-  color: #343a40;
-}
-
-.btn-outline:hover {
-  background-color: #e9ecef;
-  border-color: #6c757d;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .search-input {
-    padding: 10px 36px 10px 36px;
-    font-size: 16px; /* Evita zoom en iOS */
-  }
-  
-  .selected-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .remove-button {
-    align-self: flex-end;
-    margin-left: 0;
-  }
-  
-  .diagnostic-matches {
-    margin-top: 4px;
-  }
-  
-  .dropdown-item {
-    padding: 16px 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  .diagnostic-selector-container {
-    font-size: 14px;
-  }
-  
-  .selected-section {
-    padding: 12px;
-  }
-  
-  .search-dropdown {
-    max-height: 250px;
-  }
-  
-  .dropdown-item {
-    padding: 12px 8px;
-  }
-}
-
-/* Scrollbar personalizado para el dropdown */
-.search-dropdown::-webkit-scrollbar,
-.dropdown-results::-webkit-scrollbar {
-  width: 6px;
-}
-
-.search-dropdown::-webkit-scrollbar-track,
-.dropdown-results::-webkit-scrollbar-track {
-  background: #f8f9fa;
-}
-
-.search-dropdown::-webkit-scrollbar-thumb,
-.dropdown-results::-webkit-scrollbar-thumb {
-  background: #dee2e6;
-  border-radius: 3px;
-}
-
-.search-dropdown::-webkit-scrollbar-thumb:hover,
-.dropdown-results::-webkit-scrollbar-thumb:hover {
-  background: #6c757d;
-}
-
-/* Animaciones */
-.search-dropdown {
-  animation: slideDown 0.2s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.selected-item {
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* Estados de hover mejorados */
-.dropdown-item:not(.dropdown-item-disabled):hover .diagnostic-code {
-  color: #007bff;
-}
-
-.selected-item:hover .selected-code {
-  color: #0056b3;
-}
-
-/* Mejoras de accesibilidad */
-.search-input:focus,
-.remove-button:focus,
-.clear-button:focus,
-.btn:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-}
-
-.dropdown-item-selected {
-  background-color: rgba(0, 123, 255, 0.1);
-  border-left: 3px solid #007bff;
-}
-</style>
