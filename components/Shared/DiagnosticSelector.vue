@@ -5,6 +5,9 @@
       <label v-if="label" class="search-label">
         <i class="fas fa-search"></i>
         {{ label }}
+        <span v-if="cacheStatus" class="cache-status" :title="cacheStatusTooltip">
+          <i :class="cacheIcon"></i>
+        </span>
       </label>
       
       <div class="search-input-container">
@@ -40,7 +43,7 @@
         >
           <div v-if="loadingData" class="dropdown-loading">
             <div class="spinner-small"></div>
-            <span>Cargando base de datos CIE-10...</span>
+            <span>{{ loadingMessage }}</span>
           </div>
           
           <div v-else-if="loading" class="dropdown-loading">
@@ -141,6 +144,17 @@
           <i class="fas fa-trash"></i>
           Limpiar Todo
         </button>
+        
+        <button
+          v-if="showCacheControls"
+          @click="clearCache"
+          class="btn btn-outline btn-sm"
+          type="button"
+          title="Limpiar caché y recargar datos"
+        >
+          <i class="fas fa-sync"></i>
+          Actualizar Datos
+        </button>
       </div>
     </div>
 
@@ -156,10 +170,121 @@
 <script>
 import Fuse from 'fuse.js';
 
+// Sistema de caché para datos CIE-10
+class CIE10Cache {
+  static CACHE_KEY = 'cie10_data_cache';
+  static VERSION_KEY = 'cie10_cache_version';
+  static CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 días en ms
+  static CURRENT_VERSION = '1.0'; // Cambiar para invalidar caché
+  
+  static isSupported() {
+    try {
+      return typeof Storage !== 'undefined' && 
+             localStorage.getItem !== undefined;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  static getCachedData() {
+    if (!this.isSupported()) return null;
+    
+    try {
+      const cached = localStorage.getItem(this.CACHE_KEY);
+      const version = localStorage.getItem(this.VERSION_KEY);
+      
+      if (!cached || version !== this.CURRENT_VERSION) {
+        this.clearCache();
+        return null;
+      }
+      
+      const data = JSON.parse(cached);
+      
+      // Verificar si el caché ha expirado
+      if (Date.now() - data.timestamp > this.CACHE_DURATION) {
+        this.clearCache();
+        return null;
+      }
+      
+      return data.content;
+    } catch (e) {
+      this.clearCache();
+      return null;
+    }
+  }
+  
+  static setCachedData(data) {
+    if (!this.isSupported() || !data) return false;
+    
+    try {
+      const cacheData = {
+        content: data,
+        timestamp: Date.now(),
+        version: this.CURRENT_VERSION
+      };
+      
+      localStorage.setItem(this.CACHE_KEY, JSON.stringify(cacheData));
+      localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
+      return true;
+    } catch (e) {
+      // localStorage lleno o error
+      return false;
+    }
+  }
+  
+  static clearCache() {
+    if (!this.isSupported()) return;
+    
+    try {
+      localStorage.removeItem(this.CACHE_KEY);
+      localStorage.removeItem(this.VERSION_KEY);
+    } catch (e) {
+      // Ignorar errores
+    }
+  }
+  
+  static getCacheInfo() {
+    if (!this.isSupported()) return null;
+    
+    try {
+      const cached = localStorage.getItem(this.CACHE_KEY);
+      const version = localStorage.getItem(this.VERSION_KEY);
+      
+      if (!cached) return null;
+      
+      const data = JSON.parse(cached);
+      const age = Date.now() - data.timestamp;
+      const daysOld = Math.floor(age / (24 * 60 * 60 * 1000));
+      
+      return {
+        exists: true,
+        version,
+        daysOld,
+        isExpired: age > this.CACHE_DURATION,
+        recordCount: data.content?.length || 0
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
 let cie10Data = [];
 
-async function loadCie10Data() {
+async function loadCie10Data(forceReload = false) {
   try {
+    // Intentar cargar desde caché primero
+    if (!forceReload) {
+      const cachedData = CIE10Cache.getCachedData();
+      if (cachedData && cachedData.length > 0) {
+        return {
+          data: cachedData,
+          fromCache: true
+        };
+      }
+    }
+    
+    // Cargar desde servidor
     const possiblePaths = [
       '/data/cie10.json',
       '../data/cie10.json',
@@ -173,7 +298,14 @@ async function loadCie10Data() {
         
         if (response.ok) {
           const data = await response.json();
-          return data;
+          
+          // Guardar en caché
+          CIE10Cache.setCachedData(data);
+          
+          return {
+            data,
+            fromCache: false
+          };
         }
       } catch (error) {
         continue;
@@ -231,13 +363,18 @@ export default {
       default: true
     },
     
+    showCacheControls: {
+      type: Boolean,
+      default: false
+    },
+    
     fuseOptions: {
       type: Object,
       default: () => ({})
     }
   },
   
-  emits: ['update:modelValue', 'diagnostic-selected', 'diagnostic-removed', 'search'],
+  emits: ['update:modelValue', 'diagnostic-selected', 'diagnostic-removed', 'search', 'cache-status'],
   
   data() {
     return {
@@ -249,7 +386,9 @@ export default {
       fuse: null,
       searchTimeout: null,
       dataLoaded: false,
-      loadingData: true
+      loadingData: true,
+      loadingMessage: 'Cargando base de datos CIE-10...',
+      cacheStatus: null
     };
   },
   
@@ -282,6 +421,36 @@ export default {
         includeMatches: true,
         ...this.fuseOptions
       };
+    },
+    
+    cacheIcon() {
+      if (!this.cacheStatus) return '';
+      
+      switch (this.cacheStatus.source) {
+        case 'cache':
+          return 'fas fa-archive text-success';
+        case 'network':
+          return 'fas fa-cloud-download-alt text-info';
+        case 'error':
+          return 'fas fa-exclamation-triangle text-warning';
+        default:
+          return '';
+      }
+    },
+    
+    cacheStatusTooltip() {
+      if (!this.cacheStatus) return '';
+      
+      switch (this.cacheStatus.source) {
+        case 'cache':
+          return `Datos desde caché local (${this.cacheStatus.age})`;
+        case 'network':
+          return 'Datos descargados desde servidor';
+        case 'error':
+          return 'Error al cargar datos';
+        default:
+          return '';
+      }
     }
   },
   
@@ -301,7 +470,25 @@ export default {
       this.loadingData = true;
       
       if (!this.diagnosticData) {
-        cie10Data = await loadCie10Data();
+        // Verificar estado del caché
+        const cacheInfo = CIE10Cache.getCacheInfo();
+        
+        if (cacheInfo) {
+          this.loadingMessage = cacheInfo.isExpired ? 
+            'Actualizando datos CIE-10...' : 
+            'Cargando desde caché local...';
+        }
+        
+        const result = await loadCie10Data();
+        cie10Data = result.data;
+        
+        // Actualizar estado del caché
+        this.cacheStatus = {
+          source: result.fromCache ? 'cache' : 'network',
+          age: cacheInfo?.daysOld ? 
+            `${cacheInfo.daysOld} día${cacheInfo.daysOld !== 1 ? 's' : ''}` : 
+            'recién descargado'
+        };
         
         if (!cie10Data || cie10Data.length === 0) {
           throw new Error('Los datos cargados están vacíos');
@@ -310,12 +497,17 @@ export default {
         this.initializeFuse();
         
       } else {
+        this.cacheStatus = { source: 'external', age: 'datos externos' };
         this.initializeFuse();
       }
       
       this.dataLoaded = true;
       
+      // Emitir evento con estado del caché
+      this.$emit('cache-status', this.cacheStatus);
+      
     } catch (error) {
+      this.cacheStatus = { source: 'error', age: 'error' };
       this.dataLoaded = false;
     } finally {
       this.loadingData = false;
@@ -339,6 +531,33 @@ export default {
         this.fuse = new Fuse(data, this.defaultFuseOptions);
       } else {
         this.fuse = null;
+      }
+    },
+    
+    async clearCache() {
+      try {
+        this.loadingData = true;
+        this.loadingMessage = 'Descargando datos actualizados...';
+        
+        // Limpiar caché y recargar
+        CIE10Cache.clearCache();
+        const result = await loadCie10Data(true);
+        cie10Data = result.data;
+        
+        this.cacheStatus = {
+          source: 'network',
+          age: 'recién descargado'
+        };
+        
+        this.initializeFuse();
+        this.dataLoaded = true;
+        
+        this.$emit('cache-status', this.cacheStatus);
+        
+      } catch (error) {
+        this.cacheStatus = { source: 'error', age: 'error' };
+      } finally {
+        this.loadingData = false;
       }
     },
     
@@ -507,6 +726,15 @@ export default {
     
     getDiagnosticByCodes(codes) {
       return this.activeDiagnosticData.filter(item => codes.includes(item.code));
+    },
+    
+    // Métodos públicos para manejo de caché
+    getCacheInfo() {
+      return CIE10Cache.getCacheInfo();
+    },
+    
+    isCacheSupported() {
+      return CIE10Cache.isSupported();
     }
   }
 };
@@ -536,6 +764,23 @@ export default {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.cache-status {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.cache-status .text-success {
+  color: #28a745;
+}
+
+.cache-status .text-info {
+  color: #17a2b8;
+}
+
+.cache-status .text-warning {
+  color: #ffc107;
 }
 
 .search-input-container {
@@ -845,6 +1090,7 @@ export default {
 .selected-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 /* Estado vacío */
@@ -929,6 +1175,11 @@ export default {
   
   .dropdown-item {
     padding: 16px 12px;
+  }
+  
+  .selected-actions {
+    flex-direction: column;
+    align-items: center;
   }
 }
 
