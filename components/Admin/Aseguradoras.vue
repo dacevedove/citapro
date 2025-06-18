@@ -2,6 +2,45 @@
   <div class="aseguradoras-container">
     <h1>Gestión de Aseguradoras</h1>
     
+    <!-- ==================== INICIO SECCIÓN DE PRUEBA ==================== -->
+    <!-- ELIMINAR ESTA SECCIÓN COMPLETA DESPUÉS DE PROBAR -->
+    <div class="test-section">
+      <h2>🧪 Prueba del Selector de Diagnósticos CIE-10</h2>
+      <p class="test-description">
+        Esta sección es solo para probar el componente DiagnosticSelector. 
+        <strong>Eliminar después de las pruebas.</strong>
+      </p>
+      
+      <div class="diagnostic-test-container">
+        <DiagnosticSelector
+          v-model="diagnosticosPrueba"
+          label="Diagnósticos de Prueba CIE-10"
+          placeholder="Buscar diagnósticos por código o descripción (ej: diabetes, A00, etc.)"
+          :max-results="8"
+          :max-selections="5"
+          @diagnostic-selected="onDiagnosticSelected"
+          @diagnostic-removed="onDiagnosticRemoved"
+          @search="onSearch"
+        />
+        
+        <!-- Debug info -->
+        <div v-if="diagnosticosPrueba.length > 0" class="debug-info">
+          <h4>🔍 Debug - Diagnósticos seleccionados:</h4>
+          <pre>{{ JSON.stringify(diagnosticosPrueba, null, 2) }}</pre>
+        </div>
+        
+        <div class="test-actions">
+          <button @click="clearDiagnostics" class="btn btn-outline">
+            <i class="fas fa-trash"></i> Limpiar Diagnósticos
+          </button>
+          <button @click="addSampleDiagnostics" class="btn btn-info">
+            <i class="fas fa-plus"></i> Agregar Ejemplos
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- ==================== FIN SECCIÓN DE PRUEBA ==================== -->
+    
     <div class="header-section">
       <button class="btn btn-primary" @click="abrirModal">
         <i class="fas fa-plus"></i> Nueva Aseguradora
@@ -159,9 +198,17 @@
 
 <script>
 import axios from 'axios';
+// IMPORTACIÓN DE PRUEBA - ELIMINAR DESPUÉS
+import DiagnosticSelector from '../Shared/DiagnosticSelector.vue';
 
 export default {
   name: 'Aseguradoras',
+  
+  // COMPONENTE DE PRUEBA - ELIMINAR DESPUÉS
+  components: {
+    DiagnosticSelector
+  },
+  
   data() {
     return {
       aseguradoras: [],
@@ -183,13 +230,56 @@ export default {
         password: '',
         estado: 'activo'
       },
-      aseguradoraEliminar: null
+      aseguradoraEliminar: null,
+      
+      // DATOS DE PRUEBA - ELIMINAR DESPUÉS
+      diagnosticosPrueba: []
     }
   },
   mounted() {
     this.cargarAseguradoras();
   },
   methods: {
+    // ==================== MÉTODOS DE PRUEBA - ELIMINAR DESPUÉS ====================
+    onDiagnosticSelected(diagnostic) {
+      console.log('🩺 Diagnóstico seleccionado:', diagnostic);
+      alert(`Diagnóstico seleccionado: ${diagnostic.code} - ${diagnostic.description}`);
+    },
+    
+    onDiagnosticRemoved(diagnostic) {
+      console.log('🗑️ Diagnóstico eliminado:', diagnostic);
+      alert(`Diagnóstico eliminado: ${diagnostic.code}`);
+    },
+    
+    onSearch(searchData) {
+      console.log('🔍 Búsqueda realizada:', searchData);
+    },
+    
+    clearDiagnostics() {
+      this.diagnosticosPrueba = [];
+      console.log('🧹 Diagnósticos limpiados');
+    },
+    
+    addSampleDiagnostics() {
+      // Agregar algunos diagnósticos de ejemplo
+      const ejemplos = [
+        {
+          level: 1,
+          code: "E10",
+          description: "Diabetes mellitus insulinodependiente"
+        },
+        {
+          level: 0,
+          code: "I10-I16", 
+          description: "Enfermedades hipertensivas"
+        }
+      ];
+      
+      this.diagnosticosPrueba = [...this.diagnosticosPrueba, ...ejemplos];
+      console.log('📝 Diagnósticos de ejemplo agregados');
+    },
+    // ==================== FIN MÉTODOS DE PRUEBA ====================
+    
     async cargarAseguradoras() {
       try {
         const token = localStorage.getItem('token');
@@ -357,6 +447,68 @@ h1 {
   margin-bottom: 20px;
   color: var(--dark-color);
 }
+
+/* ==================== ESTILOS DE PRUEBA - ELIMINAR DESPUÉS ==================== */
+.test-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  border: 3px dashed #ffd700;
+}
+
+.test-section h2 {
+  margin: 0 0 10px 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.test-description {
+  margin: 0 0 20px 0;
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+.diagnostic-test-container {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  color: #333;
+}
+
+.debug-info {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-left: 4px solid #007bff;
+  border-radius: 4px;
+}
+
+.debug-info h4 {
+  margin: 0 0 10px 0;
+  color: #007bff;
+  font-size: 14px;
+}
+
+.debug-info pre {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin: 0;
+  overflow-x: auto;
+  max-height: 200px;
+}
+
+.test-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: center;
+}
+/* ==================== FIN ESTILOS DE PRUEBA ==================== */
 
 .header-section {
   display: flex;
@@ -555,6 +707,16 @@ h1 {
     flex-direction: column;
     gap: 10px;
   }
+  
+  /* RESPONSIVE DE PRUEBA - ELIMINAR DESPUÉS */
+  .test-section {
+    padding: 15px;
+  }
+  
+  .test-actions {
+    flex-direction: column;
+    align-items: center;
+  }
 }
 
 @media (max-width: 576px) {
@@ -587,5 +749,14 @@ h1 {
   .search-btn {
     border-radius: 0 0 4px 4px;
   }
+  
+  /* RESPONSIVE DE PRUEBA - ELIMINAR DESPUÉS */
+  .test-section h2 {
+    font-size: 20px;
+  }
+  
+  .debug-info pre {
+    font-size: 10px;
+  }
 }
-</style>
+</style>s
