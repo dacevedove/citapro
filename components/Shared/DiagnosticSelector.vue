@@ -1108,3 +1108,4 @@ export default {
   background-color: rgba(0, 123, 255, 0.1);
   border-left: 3px solid #007bff;
 }
+</style>
