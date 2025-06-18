@@ -276,7 +276,9 @@ export default {
     
     // Usar datos proporcionados o datos internos
     activeDiagnosticData() {
-      return this.diagnosticData || cie10Data;
+      const data = this.diagnosticData || cie10Data;
+      console.log('🔄 Computed activeDiagnosticData:', data?.length || 0, 'registros');
+      return data;
     },
     
     defaultFuseOptions() {
@@ -327,11 +329,16 @@ export default {
         if (!cie10Data || cie10Data.length === 0) {
           throw new Error('Los datos cargados están vacíos');
         }
+        
+        // IMPORTANTE: Forzar la inicialización después de cargar los datos
+        console.log('🔧 Forzando inicialización de Fuse.js después de cargar datos...');
+        this.initializeFuse();
+        
       } else {
         console.log('📋 Usando datos externos proporcionados:', this.diagnosticData.length, 'registros');
+        this.initializeFuse();
       }
       
-      this.initializeFuse();
       this.dataLoaded = true;
       console.log('✅ DiagnosticSelector listo para usar');
       
@@ -357,10 +364,17 @@ export default {
   
   methods: {
     initializeFuse() {
-      const data = this.activeDiagnosticData;
+      // Usar directamente cie10Data si no hay datos externos, 
+      // o usar this.diagnosticData si se proporcionaron
+      const data = this.diagnosticData || cie10Data;
+      
       console.log('🔧 Inicializando Fuse.js con', data?.length || 0, 'registros');
+      console.log('📊 Fuente de datos:', this.diagnosticData ? 'externa (props)' : 'interna (cie10Data)');
       
       if (data && data.length > 0) {
+        // Verificar estructura de los primeros datos
+        console.log('🔍 Muestra de datos:', data.slice(0, 2));
+        
         this.fuse = new Fuse(data, this.defaultFuseOptions);
         console.log('✅ Fuse.js inicializado correctamente');
         
@@ -368,6 +382,8 @@ export default {
         this.debugInfo = '';
       } else {
         console.warn('⚠️ No se puede inicializar Fuse.js - datos vacíos');
+        console.log('🔍 Debug - cie10Data length:', cie10Data?.length || 0);
+        console.log('🔍 Debug - this.diagnosticData length:', this.diagnosticData?.length || 0);
         this.fuse = null;
         this.debugInfo = 'Datos CIE-10 no disponibles';
       }
