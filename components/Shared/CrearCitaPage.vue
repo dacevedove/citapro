@@ -255,6 +255,73 @@
           </div>
 
           <div class="form-section">
+            <!-- Selección de seguro si el paciente es asegurado -->
+            <div v-if="pacienteSeleccionado.tipo === 'asegurado' && segurosDelPaciente.length > 0" class="insurance-selection">
+              <div class="section-header">
+                <h3>
+                  <i class="fas fa-shield-alt"></i>
+                  Seguro Médico
+                </h3>
+                <p>Seleccione el seguro con el que se gestionará esta cita</p>
+              </div>
+              
+              <div class="insurance-options">
+                <label 
+                  v-for="seguro in segurosDelPaciente" 
+                  :key="seguro.id" 
+                  class="insurance-option"
+                  :class="{ 'selected': cita.paciente_seguro_id === seguro.id }"
+                >
+                  <input 
+                    type="radio" 
+                    v-model="cita.paciente_seguro_id" 
+                    :value="seguro.id"
+                    name="seguro"
+                  />
+                  <div class="insurance-card">
+                    <div class="insurance-header">
+                      <div class="insurance-icon">
+                        <i class="fas fa-building"></i>
+                      </div>
+                      <div class="insurance-info">
+                        <h4>{{ seguro.aseguradora_nombre }}</h4>
+                        <p class="policy-number">Póliza: {{ seguro.numero_poliza }}</p>
+                      </div>
+                      <div class="coverage-badge" :class="seguro.tipo_cobertura">
+                        {{ seguro.tipo_cobertura === 'principal' ? 'Principal' : 
+                           seguro.tipo_cobertura === 'secundario' ? 'Secundario' : 'Complementario' }}
+                      </div>
+                    </div>
+                    <div v-if="seguro.fecha_vencimiento" class="insurance-validity">
+                      <i class="fas fa-calendar-check"></i>
+                      <span>Vigente hasta {{ formatearFecha(seguro.fecha_vencimiento) }}</span>
+                    </div>
+                  </div>
+                </label>
+                
+                <!-- Opción para pago particular -->
+                <label class="insurance-option" :class="{ 'selected': cita.paciente_seguro_id === null }">
+                  <input 
+                    type="radio" 
+                    v-model="cita.paciente_seguro_id" 
+                    :value="null"
+                    name="seguro"
+                  />
+                  <div class="insurance-card particular">
+                    <div class="insurance-header">
+                      <div class="insurance-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                      </div>
+                      <div class="insurance-info">
+                        <h4>Pago Particular</h4>
+                        <p class="policy-number">Sin cobertura de seguro</p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             <div class="form-grid">
               <div class="form-group">
                 <label class="form-label">Especialidad *</label>
@@ -439,6 +506,13 @@
                   <strong>Doctor asignado:</strong> Dr. {{ getNombreDoctor(cita.doctor_id) }}
                 </p>
                 <p v-if="cita.notas"><strong>Notas:</strong> {{ cita.notas }}</p>
+                <p v-if="pacienteSeleccionado.tipo === 'asegurado'">
+                  <strong>Forma de pago:</strong> 
+                  <span v-if="getSeguroSeleccionado()">
+                    {{ getSeguroSeleccionado().aseguradora_nombre }} - Póliza: {{ getSeguroSeleccionado().numero_poliza }}
+                  </span>
+                  <span v-else>Pago Particular</span>
+                </p>
               </div>
             </div>
           </div>
@@ -495,10 +569,12 @@ export default {
       especialidades: [],
       tiposBloque: [],
       doctores: [],
+      segurosDelPaciente: [],
       
       // Estados
       procesandoCita: false,
       errorCreacion: '',
+      cargandoSeguros: false,
       
       // Objetos de datos
       pacienteSeleccionado: {},
@@ -511,7 +587,8 @@ export default {
         descripcion: '',
         asignacion_inicial: 'ninguna',
         doctor_id: '',
-        notas: ''
+        notas: '',
+        paciente_seguro_id: null
       },
       
       nuevoPaciente: {
@@ -620,6 +697,7 @@ export default {
       this.pacienteSeleccionado = {};
       this.pacienteEncontrado = false;
       this.mostrarFormularioNuevoPaciente = false;
+      this.segurosDelPaciente = [];
       
       try {
         const token = localStorage.getItem('token');
@@ -631,6 +709,9 @@ export default {
           this.pacienteSeleccionado = response.data;
           this.cita.paciente_id = response.data.id;
           this.pacienteEncontrado = true;
+          
+          // Cargar seguros del paciente
+          await this.cargarSegurosDelPaciente(response.data.id);
         } else {
           this.mostrarFormularioNuevoPaciente = true;
           this.nuevoPaciente.cedula = this.cedulaPaciente;
@@ -644,6 +725,30 @@ export default {
         }
       } finally {
         this.buscandoPaciente = false;
+      }
+    },
+    
+    async cargarSegurosDelPaciente(pacienteId) {
+      this.cargandoSeguros = true;
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`/api/pacientes/seguros/listar.php?paciente_id=${pacienteId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        // Filtrar solo seguros activos
+        this.segurosDelPaciente = response.data.filter(seguro => seguro.estado === 'activo');
+        
+        // Si tiene seguros activos, seleccionar el principal por defecto
+        const seguroPrincipal = this.segurosDelPaciente.find(s => s.tipo_cobertura === 'principal');
+        if (seguroPrincipal) {
+          this.cita.paciente_seguro_id = seguroPrincipal.id;
+        }
+      } catch (error) {
+        console.error('Error al cargar seguros:', error);
+        this.segurosDelPaciente = [];
+      } finally {
+        this.cargandoSeguros = false;
       }
     },
     
@@ -713,6 +818,11 @@ export default {
           tipo_bloque_id: this.cita.tipo_bloque_id,
           descripcion: this.cita.descripcion
         };
+        
+        // Agregar el seguro seleccionado si aplica
+        if (this.pacienteSeleccionado.tipo === 'asegurado' && this.cita.paciente_seguro_id) {
+          payload.paciente_seguro_id = this.cita.paciente_seguro_id;
+        }
         
         if (this.cita.notas) {
           payload.descripcion += '\n\nNotas: ' + this.cita.notas;
@@ -797,6 +907,21 @@ export default {
         case 'autoasignar': return 'Autoasignado';
         default: return '';
       }
+    },
+    
+    formatearFecha(fecha) {
+      return new Date(fecha).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    },
+    
+    getSeguroSeleccionado() {
+      if (this.cita.paciente_seguro_id) {
+        return this.segurosDelPaciente.find(s => s.id === this.cita.paciente_seguro_id);
+      }
+      return null;
     }
   }
 };
@@ -1282,6 +1407,149 @@ export default {
 .option-content small {
   color: #6c757d;
   font-size: 14px;
+}
+
+/* Insurance Selection */
+.insurance-selection {
+  margin-bottom: 40px;
+  padding: 24px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.insurance-selection .section-header {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.insurance-selection .section-header h3 {
+  margin: 0 0 8px 0;
+  color: #343a40;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.insurance-selection .section-header p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.insurance-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.insurance-option {
+  cursor: pointer;
+  display: block;
+}
+
+.insurance-option input[type="radio"] {
+  display: none;
+}
+
+.insurance-card {
+  padding: 20px;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  background: white;
+  transition: all 0.2s;
+  height: 100%;
+}
+
+.insurance-option:hover .insurance-card {
+  border-color: #007bff;
+  box-shadow: 0 2px 10px rgba(0, 123, 255, 0.1);
+}
+
+.insurance-option.selected .insurance-card {
+  border-color: #007bff;
+  background: rgba(0, 123, 255, 0.05);
+}
+
+.insurance-card.particular {
+  border-style: dashed;
+}
+
+.insurance-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.insurance-icon {
+  width: 40px;
+  height: 40px;
+  background: #e3f2fd;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1976d2;
+  font-size: 18px;
+}
+
+.insurance-card.particular .insurance-icon {
+  background: #fff8e1;
+  color: #f57c00;
+}
+
+.insurance-info {
+  flex: 1;
+}
+
+.insurance-info h4 {
+  margin: 0 0 4px 0;
+  color: #343a40;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.policy-number {
+  margin: 0;
+  color: #6c757d;
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.coverage-badge {
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.coverage-badge.principal {
+  background: #007bff;
+  color: white;
+}
+
+.coverage-badge.secundario {
+  background: #6c757d;
+  color: white;
+}
+
+.coverage-badge.complementario {
+  background: #17a2b8;
+  color: white;
+}
+
+.insurance-validity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #28a745;
+  font-size: 13px;
+  padding-top: 8px;
+  border-top: 1px solid #e9ecef;
 }
 
 /* Confirmation */

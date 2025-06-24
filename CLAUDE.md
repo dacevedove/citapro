@@ -71,13 +71,43 @@ npm run preview
 
 ## Database Schema Key Tables
 
-- **usuarios**: System users with roles
-- **pacientes**: Patient profiles linked to users
+### Core Tables
+- **usuarios**: System users with roles and profile photos (foto_perfil)
+- **pacientes**: Patient profiles with insurance holder info (es_titular, titular_id, tipo, parentesco)
 - **doctores**: Doctor profiles with specialties
-- **citas**: Appointments with states (solicitada, asignada, confirmada, etc.)
+- **citas**: Appointments with states and insurance policy link (paciente_seguro_id)
 - **aseguradoras**: Insurance companies
-- **horarios**: Doctor schedules with time blocks
-- **logs_auditoria**: Audit trail for all actions
+- **consultorios**: Medical offices/consultation rooms
+- **especialidades**: Medical specialties
+- **subespecialidades**: Subspecialties linked to main specialties
+
+### Insurance Management
+- **titulares**: Insurance policy holders with personal data and affiliation numbers
+- **pacientes_seguros**: Patient insurance policies (multiple per patient, coverage types, expiration tracking)
+- **pacientes_seguros_historial**: Audit trail for insurance changes with JSON data
+- **v_pacientes_seguros_completo**: View joining patient insurance data with status calculations
+
+### Schedule Management
+- **horarios_doctores**: Doctor schedules with block types and duration
+- **tipos_bloque_horario**: Schedule block types with colors for UI
+- **citas_horarios**: Junction table linking appointments to time blocks
+- **logs_horarios**: Schedule change audit trail with JSON data
+
+### Notification System
+- **notificaciones**: Standard notifications
+- **temp_notificaciones**: Enhanced notification queue (WhatsApp, email, SMS) with retry logic
+
+### Temporary Processing Tables
+- **temp_solicitudes**: Insurance company appointment requests
+- **temp_asignaciones**: Temporary appointment assignments
+- **temp_turnos_disponibles**: Available appointment slots
+- **temp_doctores_activos**: Active doctor status
+- **temp_horarios_doctores**: Simplified temporary schedules
+- **temp_horarios_backup**: Schedule backups
+
+### Audit & Logging
+- **logs_auditoria**: General audit trail for all actions
+- **logs_horarios**: Specific schedule change tracking
 
 ## Component Organization
 
@@ -162,6 +192,31 @@ The system supports multiple notification channels:
 5. Handle loading states and errors appropriately
 
 ### Database Migrations
-- Schema changes should be added to `lgm_clinic.sql`
+- Schema changes should be added to `structure2306.sql` (latest schema)
 - Consider existing data when modifying tables
 - Update relevant PHP endpoints after schema changes
+
+## Key Database Relationships
+
+### Insurance Coverage Flow
+- `titulares` (policy holders) → `pacientes` (via titular_id for dependents)
+- `pacientes` → `pacientes_seguros` (multiple insurance policies per patient)
+- `pacientes_seguros` → `aseguradoras` (insurance companies)
+- `citas` → `pacientes_seguros` (specific insurance used for appointment)
+
+### Appointment Request Flow (Insurance Companies)
+1. `temp_solicitudes` - Insurance company creates appointment request
+2. `temp_asignaciones` - System assigns to available slots
+3. `temp_turnos_disponibles` - Available time slots checked
+4. `temp_notificaciones` - Notifications sent to relevant parties
+
+### Schedule Management
+- `horarios_doctores` → `tipos_bloque_horario` (colored block types)
+- `citas` → `citas_horarios` → `horarios_doctores` (appointment time tracking)
+- Changes tracked in `logs_horarios` with JSON before/after data
+
+### Important Field Notes
+- **pacientes.tipo**: 'asegurado' or 'particular' (insured vs private pay)
+- **pacientes_seguros.tipo_cobertura**: 'principal', 'secundario', 'complementario'
+- **pacientes_seguros.es_beneficiario**: Boolean for dependent coverage
+- **temp_notificaciones**: Supports retry_count and last_retry for failed notifications

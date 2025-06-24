@@ -72,6 +72,12 @@ try {
         $values .= ", :tipo_bloque_id";
     }
     
+    // Añadir paciente_seguro_id si se proporciona
+    if (isset($data->paciente_seguro_id) && !empty($data->paciente_seguro_id)) {
+        $sql .= ", paciente_seguro_id";
+        $values .= ", :paciente_seguro_id";
+    }
+    
     $sql .= ") " . $values . ")";
     
     // Insertar cita
@@ -85,6 +91,10 @@ try {
     
     if (isset($data->tipo_bloque_id) && !empty($data->tipo_bloque_id)) {
         $stmt->bindParam(':tipo_bloque_id', $data->tipo_bloque_id);
+    }
+    
+    if (isset($data->paciente_seguro_id) && !empty($data->paciente_seguro_id)) {
+        $stmt->bindParam(':paciente_seguro_id', $data->paciente_seguro_id);
     }
     
     $stmt->execute();
@@ -104,6 +114,7 @@ try {
         'paciente_id' => $data->paciente_id,
         'especialidad_id' => $data->especialidad_id,
         'tipo_bloque_id' => $data->tipo_bloque_id ?? null,
+        'paciente_seguro_id' => $data->paciente_seguro_id ?? null,
         'descripcion' => $data->descripcion,
         'tipo_solicitante' => $tipoSolicitante
     ]);
