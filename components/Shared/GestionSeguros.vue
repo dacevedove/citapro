@@ -541,7 +541,8 @@ export default {
           });
           this.$emit('success', 'Seguro actualizado correctamente');
         } else {
-          await axios.post('/api/pacientes/seguros/crear.php', payload, {
+          // Usar endpoint de debug temporalmente
+          await axios.post('/api/pacientes/seguros/debug-crear.php', payload, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           this.$emit('success', 'Seguro agregado correctamente');

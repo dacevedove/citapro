@@ -27,13 +27,32 @@ if (!$userData) {
 }
 
 // Obtener datos del cuerpo de la solicitud
-$data = json_decode(file_get_contents("php://input"));
+$input = file_get_contents("php://input");
+$data = json_decode($input);
+
+// Log para debugging
+error_log("Datos recibidos para crear seguro: " . $input);
+
+// Validar que se pudo decodificar el JSON
+if ($data === null) {
+    http_response_code(400);
+    echo json_encode(["error" => "JSON inválido"]);
+    exit;
+}
 
 // Validar datos requeridos
 if (!isset($data->paciente_id) || !isset($data->aseguradora_id) || 
     !isset($data->numero_poliza) || !isset($data->fecha_inicio)) {
     http_response_code(400);
-    echo json_encode(["error" => "Datos incompletos"]);
+    echo json_encode([
+        "error" => "Datos incompletos",
+        "recibido" => [
+            "paciente_id" => isset($data->paciente_id) ? $data->paciente_id : 'faltante',
+            "aseguradora_id" => isset($data->aseguradora_id) ? $data->aseguradora_id : 'faltante',
+            "numero_poliza" => isset($data->numero_poliza) ? $data->numero_poliza : 'faltante',
+            "fecha_inicio" => isset($data->fecha_inicio) ? $data->fecha_inicio : 'faltante'
+        ]
+    ]);
     exit;
 }
 
@@ -95,43 +114,68 @@ try {
         )
     ");
     
+    // Preparar valores con defaults
+    $tipo_cobertura = $data->tipo_cobertura ?? 'principal';
+    $estado = $data->estado ?? 'activo';
+    $fecha_vencimiento = isset($data->fecha_vencimiento) && !empty($data->fecha_vencimiento) ? $data->fecha_vencimiento : null;
+    $beneficiario_principal = $data->beneficiario_principal ?? 1;
+    $parentesco = isset($data->parentesco) && !empty($data->parentesco) ? $data->parentesco : null;
+    $cedula_titular = isset($data->cedula_titular) && !empty($data->cedula_titular) ? $data->cedula_titular : null;
+    $nombre_titular = isset($data->nombre_titular) && !empty($data->nombre_titular) ? $data->nombre_titular : null;
+    $observaciones = isset($data->observaciones) && !empty($data->observaciones) ? $data->observaciones : null;
+    
     $stmt->bindParam(':paciente_id', $data->paciente_id);
     $stmt->bindParam(':aseguradora_id', $data->aseguradora_id);
     $stmt->bindParam(':numero_poliza', $data->numero_poliza);
-    $stmt->bindParam(':tipo_cobertura', $data->tipo_cobertura ?? 'principal');
-    $stmt->bindParam(':estado', $data->estado ?? 'activo');
+    $stmt->bindParam(':tipo_cobertura', $tipo_cobertura);
+    $stmt->bindParam(':estado', $estado);
     $stmt->bindParam(':fecha_inicio', $data->fecha_inicio);
-    $stmt->bindParam(':fecha_vencimiento', $data->fecha_vencimiento ?? null);
-    $stmt->bindParam(':beneficiario_principal', $data->beneficiario_principal ?? 1);
-    $stmt->bindParam(':parentesco', $data->parentesco ?? null);
-    $stmt->bindParam(':cedula_titular', $data->cedula_titular ?? null);
-    $stmt->bindParam(':nombre_titular', $data->nombre_titular ?? null);
-    $stmt->bindParam(':observaciones', $data->observaciones ?? null);
+    $stmt->bindParam(':fecha_vencimiento', $fecha_vencimiento);
+    $stmt->bindParam(':beneficiario_principal', $beneficiario_principal);
+    $stmt->bindParam(':parentesco', $parentesco);
+    $stmt->bindParam(':cedula_titular', $cedula_titular);
+    $stmt->bindParam(':nombre_titular', $nombre_titular);
+    $stmt->bindParam(':observaciones', $observaciones);
     $stmt->bindParam(':creado_por', $userData['id']);
+    
+    error_log("Intentando insertar seguro con datos: " . json_encode([
+        'paciente_id' => $data->paciente_id,
+        'aseguradora_id' => $data->aseguradora_id,
+        'numero_poliza' => $data->numero_poliza,
+        'tipo_cobertura' => $tipo_cobertura,
+        'estado' => $estado,
+        'fecha_inicio' => $data->fecha_inicio,
+        'beneficiario_principal' => $beneficiario_principal
+    ]));
     
     $stmt->execute();
     $seguro_id = $conn->lastInsertId();
     
-    // Registrar en historial
-    $stmt = $conn->prepare("
-        INSERT INTO pacientes_seguros_historial (
-            paciente_seguro_id, accion, estado_nuevo, datos_nuevos, realizado_por
-        ) VALUES (
-            :seguro_id, 'activacion', :estado, :datos, :usuario_id
-        )
-    ");
-    
-    $datos_nuevos = json_encode([
-        'numero_poliza' => $data->numero_poliza,
-        'tipo_cobertura' => $data->tipo_cobertura ?? 'principal',
-        'aseguradora_id' => $data->aseguradora_id
-    ]);
-    
-    $stmt->bindParam(':seguro_id', $seguro_id);
-    $stmt->bindParam(':estado', $data->estado ?? 'activo');
-    $stmt->bindParam(':datos', $datos_nuevos);
-    $stmt->bindParam(':usuario_id', $userData['id']);
-    $stmt->execute();
+    // Registrar en historial (opcional, no falla si la tabla no existe)
+    try {
+        $stmt = $conn->prepare("
+            INSERT INTO pacientes_seguros_historial (
+                paciente_seguro_id, accion, estado_nuevo, datos_nuevos, realizado_por
+            ) VALUES (
+                :seguro_id, 'activacion', :estado, :datos, :usuario_id
+            )
+        ");
+        
+        $datos_nuevos = json_encode([
+            'numero_poliza' => $data->numero_poliza,
+            'tipo_cobertura' => $data->tipo_cobertura ?? 'principal',
+            'aseguradora_id' => $data->aseguradora_id
+        ]);
+        
+        $stmt->bindParam(':seguro_id', $seguro_id);
+        $stmt->bindParam(':estado', $data->estado ?? 'activo');
+        $stmt->bindParam(':datos', $datos_nuevos);
+        $stmt->bindParam(':usuario_id', $userData['id']);
+        $stmt->execute();
+    } catch (Exception $historial_error) {
+        // Si no existe la tabla de historial, continuar sin error
+        error_log("No se pudo registrar en historial: " . $historial_error->getMessage());
+    }
     
     $conn->commit();
     
