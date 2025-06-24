@@ -73,19 +73,20 @@ try {
         throw new Exception("Aseguradora no encontrada");
     }
     
-    // Insertar con campos básicos (igual que el debug que funciona)
+    // Insertar con campos básicos incluyendo fecha_vencimiento
     $stmt = $conn->prepare("
         INSERT INTO pacientes_seguros (
             paciente_id, aseguradora_id, numero_poliza, tipo_cobertura, 
-            estado, fecha_inicio, creado_por
+            estado, fecha_inicio, fecha_vencimiento, creado_por
         ) VALUES (
             :paciente_id, :aseguradora_id, :numero_poliza, :tipo_cobertura,
-            :estado, :fecha_inicio, :creado_por
+            :estado, :fecha_inicio, :fecha_vencimiento, :creado_por
         )
     ");
     
     $tipo_cobertura = $data->tipo_cobertura ?? 'principal';
     $estado = $data->estado ?? 'activo';
+    $fecha_vencimiento = (isset($data->fecha_vencimiento) && !empty($data->fecha_vencimiento)) ? $data->fecha_vencimiento : null;
     
     $stmt->bindParam(':paciente_id', $data->paciente_id);
     $stmt->bindParam(':aseguradora_id', $data->aseguradora_id);
@@ -93,6 +94,7 @@ try {
     $stmt->bindParam(':tipo_cobertura', $tipo_cobertura);
     $stmt->bindParam(':estado', $estado);
     $stmt->bindParam(':fecha_inicio', $data->fecha_inicio);
+    $stmt->bindParam(':fecha_vencimiento', $fecha_vencimiento);
     $stmt->bindParam(':creado_por', $userData['id']);
     
     
