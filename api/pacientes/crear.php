@@ -1,18 +1,55 @@
 <?php
-require_once '../config/database.php';
+// api/pacientes/crear.php
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: POST");
+header("Access-Control-Max-Age: 3600");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-header('Content-Type: application/json; charset=utf-8');
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    header("HTTP/1.1 200 OK");
+    exit;
+}
+
+require_once '../config/database.php';
+include_once '../config/jwt.php';
+
+// Obtener JWT del encabezado
+$headers = getallheaders();
+$jwt = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : '';
+
+// Validar token
+$userData = validateJWT($jwt);
+if (!$userData) {
+    http_response_code(401);
+    echo json_encode(["error" => "No autorizado"]);
+    exit;
+}
 
 try {
     // Obtener el cuerpo JSON del request
-    $data = json_decode(file_get_contents("php://input"), true);
-
-    // Validar los campos básicos requeridos para todos los tipos de pacientes
-    if (!isset($data['nombre'], $data['apellido'], $data['cedula'], $data['telefono'], $data['tipo'])) {
+    $input = file_get_contents("php://input");
+    $data = json_decode($input, true);
+    
+    // Log para debugging
+    error_log("Crear paciente - Datos recibidos: " . $input);
+    
+    if ($data === null) {
         http_response_code(400);
         echo json_encode([
-            "status" => "error",
-            "message" => "Faltan datos básicos requeridos."
+            "error" => "JSON inválido"
+        ]);
+        exit;
+    }
+
+    // Validar los campos básicos requeridos para todos los tipos de pacientes
+    if (!isset($data['nombre']) || !isset($data['apellido']) || !isset($data['cedula']) || 
+        !isset($data['telefono']) || !isset($data['tipo'])) {
+        http_response_code(400);
+        echo json_encode([
+            "error" => "Faltan datos básicos requeridos",
+            "requeridos" => ["nombre", "apellido", "cedula", "telefono", "tipo"],
+            "recibidos" => array_keys($data)
         ]);
         exit;
     }
@@ -38,25 +75,30 @@ try {
         ':tipo' => $tipo
     ];
     
-    // Si es asegurado, validar y agregar campos adicionales
+    // Si es asegurado y se proporcionan datos adicionales (opcional)
     if ($tipo === 'asegurado') {
-        if (!isset($data['titular_id'], $data['parentesco'])) {
-            http_response_code(400);
-            echo json_encode([
-                "status" => "error",
-                "message" => "Para pacientes asegurados se requiere titular_id y parentesco."
-            ]);
-            exit;
+        // Solo agregar titular_id y parentesco si se proporcionan
+        if (isset($data['titular_id'])) {
+            $titular_id = $data['titular_id'];
+            $sql .= ", titular_id";
+            $valores .= ", :titular_id";
+            $parametros[':titular_id'] = $titular_id;
         }
         
-        $titular_id = $data['titular_id'];
-        $parentesco = $data['parentesco'];
+        if (isset($data['parentesco'])) {
+            $parentesco = $data['parentesco'];
+            $sql .= ", parentesco";
+            $valores .= ", :parentesco";
+            $parametros[':parentesco'] = $parentesco;
+        }
         
-        $sql .= ", titular_id, parentesco";
-        $valores .= ", :titular_id, :parentesco";
-        
-        $parametros[':titular_id'] = $titular_id;
-        $parametros[':parentesco'] = $parentesco;
+        // Agregar es_titular como campo opcional
+        if (isset($data['es_titular'])) {
+            $es_titular = $data['es_titular'];
+            $sql .= ", es_titular";
+            $valores .= ", :es_titular";
+            $parametros[':es_titular'] = $es_titular;
+        }
     }
     
     // Cerrar la consulta SQL

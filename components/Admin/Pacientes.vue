@@ -704,7 +704,7 @@ export default {
         
         console.log('Enviando datos de paciente:', JSON.stringify(pacienteData));
         
-        const response = await axios.post('/api/pacientes/crear.php', pacienteData, {
+        const response = await axios.post('/api/pacientes/debug-crear-paciente.php', pacienteData, {
           headers: {
             'Authorization': `Bearer ${this.getToken()}`,
             'Content-Type': 'application/json'
