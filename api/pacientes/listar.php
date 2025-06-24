@@ -10,7 +10,9 @@ try {
                (SELECT a.nombre_comercial FROM aseguradoras a 
                 JOIN titulares t ON a.id = t.aseguradora_id 
                 WHERE t.id = p.titular_id LIMIT 1) 
-           ELSE NULL END as aseguradora_nombre
+           ELSE NULL END as aseguradora_nombre,
+           (SELECT COUNT(*) FROM pacientes_seguros ps 
+            WHERE ps.paciente_id = p.id AND ps.estado = 'activo') as seguros_activos_count
            FROM pacientes p
            LEFT JOIN titulares t ON p.titular_id = t.id
            WHERE 1=1";

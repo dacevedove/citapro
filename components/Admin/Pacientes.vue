@@ -58,6 +58,7 @@
             <th>Cédula</th>
             <th>Contacto</th>
             <th>Aseguradora</th>
+            <th>Seguros Activos</th>
             <th>Tipo</th>
             <th>Última Cita</th>
             <th>Acciones</th>
@@ -65,10 +66,10 @@
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="7" class="text-center">Cargando...</td>
+            <td colspan="8" class="text-center">Cargando...</td>
           </tr>
           <tr v-else-if="pacientes.length === 0">
-            <td colspan="7" class="text-center">No hay pacientes registrados</td>
+            <td colspan="8" class="text-center">No hay pacientes registrados</td>
           </tr>
           <tr v-else v-for="paciente in pacientes" :key="paciente.id">
             <td>{{ paciente.nombre }} {{ paciente.apellido }}</td>
@@ -81,6 +82,23 @@
               <span v-if="paciente.aseguradora_nombre">{{ paciente.aseguradora_nombre }}</span>
               <span v-else-if="paciente.tipo === 'particular'">Particular</span>
               <span v-else>-</span>
+            </td>
+            <td>
+              <div v-if="paciente.tipo === 'asegurado'" class="seguros-indicator">
+                <span class="seguros-count" :class="getSegurosClass(paciente.seguros_activos_count)">
+                  {{ paciente.seguros_activos_count || 0 }}
+                </span>
+                <small>seguros</small>
+                <button 
+                  v-if="paciente.seguros_activos_count > 0" 
+                  class="btn-icon-small" 
+                  title="Ver seguros"
+                  @click="gestionarSeguros(paciente)"
+                >
+                  <i class="fas fa-shield-alt"></i>
+                </button>
+              </div>
+              <span v-else class="text-muted">N/A</span>
             </td>
             <td>
               <span v-if="paciente.es_titular === 1">Titular</span>
@@ -100,6 +118,14 @@
               </button>
               <button class="btn-icon" title="Editar" @click="editarPaciente(paciente)">
                 <i class="fas fa-edit"></i>
+              </button>
+              <button 
+                v-if="paciente.tipo === 'asegurado'" 
+                class="btn-icon" 
+                title="Gestionar seguros" 
+                @click="gestionarSeguros(paciente)"
+              >
+                <i class="fas fa-shield-alt"></i>
               </button>
             </td>
           </tr>
@@ -411,14 +437,42 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal para gestionar seguros -->
+    <div class="modal" v-if="showSegurosModal && pacienteSeleccionado">
+      <div class="modal-content large">
+        <div class="modal-header">
+          <h2>
+            <i class="fas fa-shield-alt"></i>
+            Gestión de Seguros - {{ pacienteSeleccionado.nombre }} {{ pacienteSeleccionado.apellido }}
+          </h2>
+          <button class="close-btn" @click="cerrarModalSeguros">×</button>
+        </div>
+        <div class="modal-body">
+          <GestionSeguros 
+            :paciente-id="pacienteSeleccionado.id"
+            :paciente-nombre="`${pacienteSeleccionado.nombre} ${pacienteSeleccionado.apellido}`"
+            @success="onSegurosSuccess"
+            @error="onSegurosError"
+          />
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="cerrarModalSeguros">Cerrar</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+import GestionSeguros from '../Shared/GestionSeguros.vue';
 
 export default {
   name: 'Pacientes',
+  components: {
+    GestionSeguros
+  },
   data() {
     return {
       pacientes: [],
@@ -448,6 +502,7 @@ export default {
       },
       showDetallesModal: false,
       showEditarModal: false,
+      showSegurosModal: false,
       pacienteSeleccionado: null,
     };
   },
@@ -578,6 +633,34 @@ export default {
     cerrarModalDetalles() {
       this.showDetallesModal = false;
       this.pacienteSeleccionado = null;
+    },
+    
+    gestionarSeguros(paciente) {
+      this.pacienteSeleccionado = paciente;
+      this.showSegurosModal = true;
+    },
+    
+    cerrarModalSeguros() {
+      this.showSegurosModal = false;
+      this.pacienteSeleccionado = null;
+      // Recargar pacientes para actualizar contadores de seguros
+      this.cargarPacientes();
+    },
+    
+    onSegurosSuccess(message) {
+      // Mostrar mensaje de éxito
+      alert(message);
+    },
+    
+    onSegurosError(message) {
+      // Mostrar mensaje de error
+      alert(message);
+    },
+    
+    getSegurosClass(count) {
+      if (!count || count === 0) return 'seguros-none';
+      if (count === 1) return 'seguros-single';
+      return 'seguros-multiple';
     },
 
     async cargarAseguradoras() {
@@ -1185,5 +1268,67 @@ h1 {
 .detalle-grupo p {
   margin: 5px 0;
   line-height: 1.4;
+}
+
+/* Estilos para indicadores de seguros */
+.seguros-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seguros-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+
+.seguros-count.seguros-none {
+  background-color: #6c757d;
+}
+
+.seguros-count.seguros-single {
+  background-color: #28a745;
+}
+
+.seguros-count.seguros-multiple {
+  background-color: #007bff;
+}
+
+.seguros-indicator small {
+  font-size: 11px;
+  color: #6c757d;
+}
+
+.btn-icon-small {
+  background: none;
+  border: none;
+  color: #007bff;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.btn-icon-small:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.text-muted {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Modal large */
+.modal-content.large {
+  max-width: 900px;
+  width: 95%;
 }
 </style>
