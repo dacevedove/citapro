@@ -101,20 +101,7 @@ try {
         $stmt->execute();
     }
     
-    // Insertar nuevo seguro
-    $stmt = $conn->prepare("
-        INSERT INTO pacientes_seguros (
-            paciente_id, aseguradora_id, numero_poliza, tipo_cobertura, 
-            estado, fecha_inicio, fecha_vencimiento, beneficiario_principal,
-            parentesco, cedula_titular, nombre_titular, observaciones, creado_por
-        ) VALUES (
-            :paciente_id, :aseguradora_id, :numero_poliza, :tipo_cobertura,
-            :estado, :fecha_inicio, :fecha_vencimiento, :beneficiario_principal,
-            :parentesco, :cedula_titular, :nombre_titular, :observaciones, :creado_por
-        )
-    ");
-    
-    // Preparar valores con defaults
+    // Preparar campos para inserción
     $tipo_cobertura = $data->tipo_cobertura ?? 'principal';
     $estado = $data->estado ?? 'activo';
     $fecha_vencimiento = isset($data->fecha_vencimiento) && !empty($data->fecha_vencimiento) ? $data->fecha_vencimiento : null;
@@ -124,19 +111,64 @@ try {
     $nombre_titular = isset($data->nombre_titular) && !empty($data->nombre_titular) ? $data->nombre_titular : null;
     $observaciones = isset($data->observaciones) && !empty($data->observaciones) ? $data->observaciones : null;
     
-    $stmt->bindParam(':paciente_id', $data->paciente_id);
-    $stmt->bindParam(':aseguradora_id', $data->aseguradora_id);
-    $stmt->bindParam(':numero_poliza', $data->numero_poliza);
-    $stmt->bindParam(':tipo_cobertura', $tipo_cobertura);
-    $stmt->bindParam(':estado', $estado);
-    $stmt->bindParam(':fecha_inicio', $data->fecha_inicio);
-    $stmt->bindParam(':fecha_vencimiento', $fecha_vencimiento);
-    $stmt->bindParam(':beneficiario_principal', $beneficiario_principal);
-    $stmt->bindParam(':parentesco', $parentesco);
-    $stmt->bindParam(':cedula_titular', $cedula_titular);
-    $stmt->bindParam(':nombre_titular', $nombre_titular);
-    $stmt->bindParam(':observaciones', $observaciones);
-    $stmt->bindParam(':creado_por', $userData['id']);
+    // Construir SQL dinámicamente solo con campos que tienen valores
+    $campos = ['paciente_id', 'aseguradora_id', 'numero_poliza', 'tipo_cobertura', 'estado', 'fecha_inicio', 'creado_por'];
+    $valores = [':paciente_id', ':aseguradora_id', ':numero_poliza', ':tipo_cobertura', ':estado', ':fecha_inicio', ':creado_por'];
+    $params = [
+        ':paciente_id' => $data->paciente_id,
+        ':aseguradora_id' => $data->aseguradora_id,
+        ':numero_poliza' => $data->numero_poliza,
+        ':tipo_cobertura' => $tipo_cobertura,
+        ':estado' => $estado,
+        ':fecha_inicio' => $data->fecha_inicio,
+        ':creado_por' => $userData['id']
+    ];
+    
+    // Agregar campos opcionales solo si tienen valores
+    if ($fecha_vencimiento !== null) {
+        $campos[] = 'fecha_vencimiento';
+        $valores[] = ':fecha_vencimiento';
+        $params[':fecha_vencimiento'] = $fecha_vencimiento;
+    }
+    
+    if ($beneficiario_principal !== null) {
+        $campos[] = 'beneficiario_principal';
+        $valores[] = ':beneficiario_principal';
+        $params[':beneficiario_principal'] = $beneficiario_principal;
+    }
+    
+    if ($parentesco !== null) {
+        $campos[] = 'parentesco';
+        $valores[] = ':parentesco';
+        $params[':parentesco'] = $parentesco;
+    }
+    
+    if ($cedula_titular !== null) {
+        $campos[] = 'cedula_titular';
+        $valores[] = ':cedula_titular';
+        $params[':cedula_titular'] = $cedula_titular;
+    }
+    
+    if ($nombre_titular !== null) {
+        $campos[] = 'nombre_titular';
+        $valores[] = ':nombre_titular';
+        $params[':nombre_titular'] = $nombre_titular;
+    }
+    
+    if ($observaciones !== null) {
+        $campos[] = 'observaciones';
+        $valores[] = ':observaciones';
+        $params[':observaciones'] = $observaciones;
+    }
+    
+    $sql = "INSERT INTO pacientes_seguros (" . implode(', ', $campos) . ") VALUES (" . implode(', ', $valores) . ")";
+    
+    $stmt = $conn->prepare($sql);
+    
+    // Vincular parámetros
+    foreach ($params as $param => $value) {
+        $stmt->bindValue($param, $value);
+    }
     
     error_log("Intentando insertar seguro con datos: " . json_encode([
         'paciente_id' => $data->paciente_id,
