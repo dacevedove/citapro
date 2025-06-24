@@ -418,12 +418,89 @@
             <!-- Selección de doctor específico -->
             <div v-if="cita.asignacion_inicial === 'doctor'" class="form-group">
               <label class="form-label">Doctor *</label>
-              <select v-model="cita.doctor_id" class="form-control" required>
+              <select v-model="cita.doctor_id" class="form-control" required @change="cargarHorariosDisponibles">
                 <option value="">Seleccione un doctor</option>
                 <option v-for="doctor in doctoresFiltrados" :key="doctor.id" :value="doctor.id">
                   Dr. {{ doctor.nombre }} {{ doctor.apellido }}
                 </option>
               </select>
+            </div>
+
+            <!-- Selector de semana cuando se selecciona doctor específico -->
+            <div v-if="cita.asignacion_inicial === 'doctor' && cita.doctor_id" class="form-group">
+              <label class="form-label">Seleccionar horario disponible *</label>
+              
+              <!-- Navegación de semana -->
+              <div class="week-navigation">
+                <button 
+                  type="button" 
+                  @click="cambiarSemana(-1)" 
+                  class="btn-week-nav"
+                  :disabled="!puedeRetrocederSemana"
+                >
+                  <i class="fas fa-chevron-left"></i>
+                  Semana anterior
+                </button>
+                
+                <div class="week-info">
+                  {{ formatearRangoSemana(semanaActual) }}
+                </div>
+                
+                <button 
+                  type="button" 
+                  @click="cambiarSemana(1)" 
+                  class="btn-week-nav"
+                >
+                  Semana siguiente
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+
+              <!-- Vista de horarios por día de la semana -->
+              <div v-if="cargandoHorarios" class="loading-horarios">
+                <div class="spinner-small"></div>
+                <span>Cargando horarios disponibles...</span>
+              </div>
+              
+              <div v-else class="week-calendar">
+                <div 
+                  v-for="dia in diasSemana" 
+                  :key="dia.fecha"
+                  class="day-column"
+                  :class="{ 'day-past': esFechaPasada(dia.fecha), 'day-today': esHoy(dia.fecha) }"
+                >
+                  <div class="day-header">
+                    <div class="day-name">{{ dia.nombreDia }}</div>
+                    <div class="day-date">{{ formatearFechaCorta(dia.fecha) }}</div>
+                  </div>
+                  
+                  <div class="day-slots">
+                    <div v-if="dia.horarios.length === 0" class="no-slots">
+                      Sin horarios
+                    </div>
+                    <label 
+                      v-else
+                      v-for="slot in dia.horarios" 
+                      :key="`${slot.horario_id}-${slot.hora}-${slot.fecha}`"
+                      class="horario-slot"
+                      :class="{ 'selected': cita.horario_seleccionado === `${slot.horario_id}-${slot.hora}-${slot.fecha}` }"
+                    >
+                      <input 
+                        type="radio" 
+                        :value="`${slot.horario_id}-${slot.hora}-${slot.fecha}`"
+                        v-model="cita.horario_seleccionado"
+                        @change="seleccionarHorario(slot)"
+                      />
+                      <div class="slot-info">
+                        <div class="slot-time">{{ slot.hora }}</div>
+                        <div class="slot-type" :style="{ backgroundColor: slot.color }">
+                          {{ slot.tipo_bloque }}
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Notas adicionales -->
@@ -588,7 +665,10 @@ export default {
         asignacion_inicial: 'ninguna',
         doctor_id: '',
         notas: '',
-        paciente_seguro_id: null
+        paciente_seguro_id: null,
+        horario_seleccionado: '',
+        fecha: '',
+        hora: ''
       },
       
       nuevoPaciente: {
@@ -600,7 +680,12 @@ export default {
         tipo: 'asegurado',
         es_titular: false,
         titular_id: null
-      }
+      },
+      
+      // Variables para manejo de horarios por semana
+      semanaActual: new Date(),
+      diasSemana: [],
+      cargandoHorarios: false
     };
   },
   
@@ -627,8 +712,15 @@ export default {
       const citaValida = this.cita.especialidad_id && 
                         this.cita.tipo_bloque_id &&
                         this.cita.descripcion && 
-                        (this.cita.asignacion_inicial !== 'doctor' || this.cita.doctor_id);
+                        (this.cita.asignacion_inicial !== 'doctor' || (this.cita.doctor_id && this.cita.horario_seleccionado));
       return citaValida;
+    },
+
+    puedeRetrocederSemana() {
+      const hoy = new Date();
+      const inicioDeSemana = this.obtenerInicioDeSemana(this.semanaActual);
+      const inicioDeEstaWeek = this.obtenerInicioDeSemana(hoy);
+      return inicioDeSemana > inicioDeEstaWeek;
     }
   },
   
@@ -684,6 +776,118 @@ export default {
       } catch (error) {
         console.error('Error al cargar doctores:', error);
       }
+    },
+
+    async cargarHorariosDisponibles() {
+      if (!this.cita.doctor_id) {
+        this.diasSemana = [];
+        return;
+      }
+
+      this.cargandoHorarios = true;
+      try {
+        // Inicializar la estructura de días de la semana
+        this.inicializarDiasSemana();
+        
+        const token = localStorage.getItem('token');
+        
+        // Cargar horarios para todos los días de la semana
+        const promesasHorarios = this.diasSemana.map(async (dia) => {
+          try {
+            const response = await axios.get('/api/horarios/disponibles.php', {
+              headers: { 'Authorization': `Bearer ${token}` },
+              params: {
+                doctor_id: this.cita.doctor_id,
+                fecha: dia.fecha
+              }
+            });
+            
+            dia.horarios = response.data.slots_disponibles || [];
+          } catch (error) {
+            console.error(`Error al cargar horarios para ${dia.fecha}:`, error);
+            dia.horarios = [];
+          }
+        });
+        
+        await Promise.all(promesasHorarios);
+        
+      } catch (error) {
+        console.error('Error al cargar horarios disponibles:', error);
+      } finally {
+        this.cargandoHorarios = false;
+      }
+    },
+
+    inicializarDiasSemana() {
+      const inicioDeSemana = this.obtenerInicioDeSemana(this.semanaActual);
+      this.diasSemana = [];
+      
+      for (let i = 0; i < 7; i++) {
+        const fecha = new Date(inicioDeSemana);
+        fecha.setDate(inicioDeSemana.getDate() + i);
+        
+        this.diasSemana.push({
+          fecha: fecha.toISOString().split('T')[0],
+          nombreDia: this.obtenerNombreDia(fecha.getDay()),
+          horarios: []
+        });
+      }
+    },
+
+    obtenerInicioDeSemana(fecha) {
+      const date = new Date(fecha);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Lunes como primer día
+      return new Date(date.setDate(diff));
+    },
+
+    obtenerNombreDia(numeroDia) {
+      const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      return dias[numeroDia];
+    },
+
+    formatearRangoSemana(fecha) {
+      const inicioDeSemana = this.obtenerInicioDeSemana(fecha);
+      const finDeSemana = new Date(inicioDeSemana);
+      finDeSemana.setDate(inicioDeSemana.getDate() + 6);
+      
+      const opciones = { day: 'numeric', month: 'short' };
+      const inicio = inicioDeSemana.toLocaleDateString('es-ES', opciones);
+      const fin = finDeSemana.toLocaleDateString('es-ES', opciones);
+      
+      return `${inicio} - ${fin}`;
+    },
+
+    formatearFechaCorta(fecha) {
+      const date = new Date(fecha);
+      return date.getDate().toString();
+    },
+
+    esFechaPasada(fecha) {
+      const hoy = new Date();
+      const fechaComparar = new Date(fecha);
+      hoy.setHours(0, 0, 0, 0);
+      fechaComparar.setHours(0, 0, 0, 0);
+      return fechaComparar < hoy;
+    },
+
+    esHoy(fecha) {
+      const hoy = new Date();
+      const fechaComparar = new Date(fecha);
+      return hoy.toDateString() === fechaComparar.toDateString();
+    },
+
+    cambiarSemana(direccion) {
+      const nuevaSemana = new Date(this.semanaActual);
+      nuevaSemana.setDate(nuevaSemana.getDate() + (direccion * 7));
+      this.semanaActual = nuevaSemana;
+      this.cargarHorariosDisponibles();
+    },
+
+    seleccionarHorario(slot) {
+      this.cita.fecha = slot.fecha;
+      this.cita.hora = slot.hora;
+      this.cita.horario_id = slot.horario_id;
     },
     
     async buscarPacientePorCedula() {
@@ -1736,5 +1940,189 @@ export default {
     text-align: center;
     gap: 12px;
   }
+}
+
+/* Estilos para vista semanal de horarios */
+.week-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.btn-week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-week-nav:hover:not(:disabled) {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+}
+
+.btn-week-nav:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.week-info {
+  font-weight: 600;
+  font-size: 16px;
+  color: #343a40;
+}
+
+.loading-horarios {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e9ecef;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.week-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background-color: #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.day-column {
+  background-color: white;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.day-column.day-past {
+  background-color: #f8f9fa;
+  opacity: 0.7;
+}
+
+.day-column.day-today .day-header {
+  background-color: #007bff;
+  color: white;
+}
+
+.day-header {
+  padding: 12px 8px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.day-name {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.day-date {
+  font-weight: 700;
+  font-size: 16px;
+  margin-top: 4px;
+}
+
+.day-slots {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.no-slots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #6c757d;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.horario-slot {
+  position: relative;
+  cursor: pointer;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 8px 6px;
+  transition: all 0.2s ease;
+  background: white;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.horario-slot:hover {
+  border-color: #007bff;
+  box-shadow: 0 1px 3px rgba(0, 123, 255, 0.2);
+}
+
+.horario-slot.selected {
+  border-color: #007bff;
+  background-color: #e7f3ff;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.horario-slot input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slot-info {
+  text-align: center;
+}
+
+.slot-time {
+  font-weight: 600;
+  font-size: 13px;
+  color: #343a40;
+  margin-bottom: 3px;
+}
+
+.slot-type {
+  font-size: 9px;
+  padding: 2px 4px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>
