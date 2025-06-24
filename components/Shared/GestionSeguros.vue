@@ -535,6 +535,9 @@ export default {
           paciente_id: this.pacienteId
         };
         
+        console.log('DEBUG: editandoSeguro =', this.editandoSeguro);
+        console.log('DEBUG: formSeguro =', this.formSeguro);
+        
         if (this.editandoSeguro) {
           await axios.put('/api/pacientes/seguros/actualizar.php', payload, {
             headers: { 'Authorization': `Bearer ${token}` }
