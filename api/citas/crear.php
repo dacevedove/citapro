@@ -62,9 +62,12 @@ try {
             exit;
     }
     
+    // Determinar estado inicial - si se asigna directamente a un horario, marcar como 'asignada'
+    $estadoInicial = (isset($data->horario_id) && !empty($data->horario_id)) ? 'asignada' : 'solicitada';
+    
     // Preparar la consulta SQL
     $sql = "INSERT INTO citas (paciente_id, especialidad_id, descripcion, estado, tipo_solicitante, creado_por";
-    $values = "VALUES (:paciente_id, :especialidad_id, :descripcion, 'solicitada', :tipo_solicitante, :creado_por";
+    $values = "VALUES (:paciente_id, :especialidad_id, :descripcion, :estado, :tipo_solicitante, :creado_por";
     
     // Añadir tipo_bloque_id si se proporciona
     if (isset($data->tipo_bloque_id) && !empty($data->tipo_bloque_id)) {
@@ -78,6 +81,30 @@ try {
         $values .= ", :paciente_seguro_id";
     }
     
+    // Añadir horario_id si se proporciona (cuando se asigna directamente a un horario)
+    if (isset($data->horario_id) && !empty($data->horario_id)) {
+        $sql .= ", horario_id";
+        $values .= ", :horario_id";
+    }
+    
+    // Añadir fecha si se proporciona
+    if (isset($data->fecha) && !empty($data->fecha)) {
+        $sql .= ", fecha";
+        $values .= ", :fecha";
+    }
+    
+    // Añadir hora si se proporciona
+    if (isset($data->hora) && !empty($data->hora)) {
+        $sql .= ", hora";
+        $values .= ", :hora";
+    }
+    
+    // Añadir doctor_id si se proporciona (asignación directa)
+    if (isset($data->doctor_id) && !empty($data->doctor_id)) {
+        $sql .= ", doctor_id";
+        $values .= ", :doctor_id";
+    }
+    
     $sql .= ") " . $values . ")";
     
     // Insertar cita
@@ -86,6 +113,7 @@ try {
     $stmt->bindParam(':paciente_id', $data->paciente_id);
     $stmt->bindParam(':especialidad_id', $data->especialidad_id);
     $stmt->bindParam(':descripcion', $data->descripcion);
+    $stmt->bindParam(':estado', $estadoInicial);
     $stmt->bindParam(':tipo_solicitante', $tipoSolicitante);
     $stmt->bindParam(':creado_por', $userData['id']);
     
@@ -95,6 +123,22 @@ try {
     
     if (isset($data->paciente_seguro_id) && !empty($data->paciente_seguro_id)) {
         $stmt->bindParam(':paciente_seguro_id', $data->paciente_seguro_id);
+    }
+    
+    if (isset($data->horario_id) && !empty($data->horario_id)) {
+        $stmt->bindParam(':horario_id', $data->horario_id);
+    }
+    
+    if (isset($data->fecha) && !empty($data->fecha)) {
+        $stmt->bindParam(':fecha', $data->fecha);
+    }
+    
+    if (isset($data->hora) && !empty($data->hora)) {
+        $stmt->bindParam(':hora', $data->hora);
+    }
+    
+    if (isset($data->doctor_id) && !empty($data->doctor_id)) {
+        $stmt->bindParam(':doctor_id', $data->doctor_id);
     }
     
     $stmt->execute();
@@ -115,6 +159,10 @@ try {
         'especialidad_id' => $data->especialidad_id,
         'tipo_bloque_id' => $data->tipo_bloque_id ?? null,
         'paciente_seguro_id' => $data->paciente_seguro_id ?? null,
+        'horario_id' => $data->horario_id ?? null,
+        'fecha' => $data->fecha ?? null,
+        'hora' => $data->hora ?? null,
+        'doctor_id' => $data->doctor_id ?? null,
         'descripcion' => $data->descripcion,
         'tipo_solicitante' => $tipoSolicitante
     ]);

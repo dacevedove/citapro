@@ -1023,6 +1023,14 @@ export default {
           descripcion: this.cita.descripcion
         };
         
+        // Agregar información de horario si se seleccionó doctor específico con horario
+        if (this.cita.asignacion_inicial === 'doctor' && this.cita.horario_id && this.cita.fecha && this.cita.hora) {
+          payload.horario_id = this.cita.horario_id;
+          payload.fecha = this.cita.fecha;
+          payload.hora = this.cita.hora;
+          payload.doctor_id = this.cita.doctor_id;
+        }
+        
         // Agregar el seguro seleccionado si aplica
         if (this.pacienteSeleccionado.tipo === 'asegurado' && this.cita.paciente_seguro_id) {
           payload.paciente_seguro_id = this.cita.paciente_seguro_id;
@@ -1038,8 +1046,8 @@ export default {
         
         const citaId = citaResponse.data.id;
         
-        // Manejar asignación si es necesaria
-        if (this.cita.asignacion_inicial !== 'ninguna') {
+        // Manejar asignación si es necesaria (solo para casos que no se asignaron directamente)
+        if (this.cita.asignacion_inicial !== 'ninguna' && !this.cita.horario_id) {
           const asignacionPayload = {
             cita_id: citaId,
             especialidad_id: this.cita.especialidad_id,
