@@ -649,7 +649,7 @@ export default {
     },
     
     formatearVigencia(seguro) {
-      if (!seguro.fecha_vencimiento) {
+      if (!seguro.fecha_vencimiento || seguro.fecha_vencimiento === null || seguro.fecha_vencimiento === '') {
         return 'Sin vencimiento';
       }
       

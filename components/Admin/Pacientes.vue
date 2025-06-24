@@ -24,22 +24,10 @@
       
       <div class="filter-options">
         <div class="filter-item">
-          <label>Aseguradora:</label>
-          <select class="form-control" v-model="filtros.aseguradora_id" @change="cargarPacientes">
-            <option value="">Todas</option>
-            <option v-for="aseguradora in aseguradoras" :key="aseguradora.id" :value="aseguradora.id">
-              {{ aseguradora.nombre_comercial }}
-            </option>
-            <option value="particular">Pacientes particulares</option>
-          </select>
-        </div>
-        
-        <div class="filter-item">
           <label>Tipo:</label>
           <select class="form-control" v-model="filtros.tipo" @change="cargarPacientes">
             <option value="">Todos</option>
-            <option value="titular">Titular</option>
-            <option value="beneficiario">Beneficiario</option>
+            <option value="asegurado">Asegurado</option>
             <option value="particular">Particular</option>
           </select>
         </div>
@@ -57,7 +45,6 @@
             <th>Nombre</th>
             <th>Cédula</th>
             <th>Contacto</th>
-            <th>Aseguradora</th>
             <th>Seguros Activos</th>
             <th>Tipo</th>
             <th>Última Cita</th>
@@ -66,10 +53,10 @@
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="8" class="text-center">Cargando...</td>
+            <td colspan="7" class="text-center">Cargando...</td>
           </tr>
           <tr v-else-if="pacientes.length === 0">
-            <td colspan="8" class="text-center">No hay pacientes registrados</td>
+            <td colspan="7" class="text-center">No hay pacientes registrados</td>
           </tr>
           <tr v-else v-for="paciente in pacientes" :key="paciente.id">
             <td>{{ paciente.nombre }} {{ paciente.apellido }}</td>
@@ -77,11 +64,6 @@
             <td>
               {{ paciente.telefono }}<br>
               <span v-if="paciente.email">{{ paciente.email }}</span>
-            </td>
-            <td>
-              <span v-if="paciente.aseguradora_nombre">{{ paciente.aseguradora_nombre }}</span>
-              <span v-else-if="paciente.tipo === 'particular'">Particular</span>
-              <span v-else>-</span>
             </td>
             <td>
               <div v-if="paciente.tipo === 'asegurado'" class="seguros-indicator">
@@ -101,7 +83,8 @@
               <span v-else class="text-muted">N/A</span>
             </td>
             <td>
-              <span v-if="paciente.es_titular === 1">Titular</span>
+              <span v-if="paciente.tipo === 'particular'">Particular</span>
+              <span v-else-if="paciente.es_titular === 1">Titular</span>
               <span v-else>Beneficiario</span>
             </td>
             <td>
@@ -704,7 +687,7 @@ export default {
         
         console.log('Enviando datos de paciente:', JSON.stringify(pacienteData));
         
-        const response = await axios.post('/api/pacientes/debug-crear-paciente.php', pacienteData, {
+        const response = await axios.post('/api/pacientes/crear.php', pacienteData, {
           headers: {
             'Authorization': `Bearer ${this.getToken()}`,
             'Content-Type': 'application/json'
