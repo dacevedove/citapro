@@ -57,6 +57,15 @@
             <i class="fas fa-chevron-right"></i>
           </button>
           <button @click="irSemanaActual" class="btn btn-primary">Hoy</button>
+          <button 
+            @click="mostrarModalCopiarSemana" 
+            class="btn btn-outline"
+            :disabled="!filtros.doctorId || horarios.length > 0"
+            :title="obtenerTituloBtnCopiar"
+          >
+            <i class="fas fa-copy"></i>
+            Copiar Semana Anterior
+          </button>
         </div>
       </div>
     </div>
@@ -178,6 +187,68 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para copiar semana anterior -->
+    <div v-if="modalCopiar.mostrar" class="modal-overlay" @click="cerrarModalCopiar">
+      <div class="modal-container modal-small" @click.stop>
+        <div class="modal-header">
+          <h2>
+            <i class="fas fa-copy"></i>
+            Copiar Horarios de Semana Anterior
+          </h2>
+          <button @click="cerrarModalCopiar" class="btn-cerrar">&times;</button>
+        </div>
+        
+        <div class="modal-cuerpo">
+          <div class="info-copiar">
+            <i class="fas fa-info-circle"></i>
+            <div>
+              <p>Esta acción copiará todos los bloques de horario de la semana anterior a la semana actual.</p>
+              <p class="semana-info-copiar">
+                <strong>Semana anterior:</strong> {{ rangoFechasSemanaAnterior }}<br>
+                <strong>Semana actual:</strong> {{ rangoFechas }}
+              </p>
+              <p class="advertencia">
+                <i class="fas fa-exclamation-triangle"></i>
+                La semana actual debe estar vacía para poder copiar los horarios.
+              </p>
+            </div>
+          </div>
+          
+          <!-- Error del modal -->
+          <div v-if="modalCopiar.error" class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ modalCopiar.error }}
+          </div>
+          
+          <!-- Mensaje de éxito -->
+          <div v-if="modalCopiar.exito" class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            {{ modalCopiar.exito }}
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button 
+            type="button" 
+            @click="cerrarModalCopiar" 
+            class="btn btn-outline"
+          >
+            <i class="fas fa-times"></i>
+            Cancelar
+          </button>
+          <button 
+            @click="copiarSemanAnterior" 
+            class="btn btn-primary"
+            :disabled="modalCopiar.copiando || modalCopiar.exito"
+          >
+            <i class="fas fa-spinner fa-spin" v-if="modalCopiar.copiando"></i>
+            <i class="fas fa-copy" v-else></i>
+            {{ modalCopiar.copiando ? 'Copiando...' : 'Copiar Horarios' }}
+          </button>
         </div>
       </div>
     </div>
@@ -373,6 +444,14 @@ export default {
         esEdicion: false,
         guardando: false,
         error: ''
+      },
+      
+      // Modal copiar semana
+      modalCopiar: {
+        mostrar: false,
+        copiando: false,
+        error: '',
+        exito: ''
       },
       
       // Formulario
@@ -577,6 +656,28 @@ export default {
              this.formulario.hora_inicio && 
              this.formulario.hora_fin &&
              this.convertirHoraAMinutos(this.formulario.hora_fin) > this.convertirHoraAMinutos(this.formulario.hora_inicio);
+    },
+    
+    // Rango de fechas de la semana anterior
+    rangoFechasSemanaAnterior() {
+      const inicioAnterior = new Date(this.inicioSemana);
+      inicioAnterior.setDate(inicioAnterior.getDate() - 7);
+      const finAnterior = new Date(inicioAnterior);
+      finAnterior.setDate(finAnterior.getDate() + 6);
+      
+      const formatoCorto = { day: 'numeric', month: 'short' };
+      return `${inicioAnterior.toLocaleDateString('es-ES', formatoCorto)} - ${finAnterior.toLocaleDateString('es-ES', formatoCorto)}`;
+    },
+    
+    // Título del botón copiar
+    obtenerTituloBtnCopiar() {
+      if (!this.filtros.doctorId) {
+        return 'Seleccione un doctor primero';
+      }
+      if (this.horarios.length > 0) {
+        return 'La semana actual debe estar vacía para poder copiar';
+      }
+      return 'Copiar todos los horarios de la semana anterior';
     }
   },
   
@@ -1106,6 +1207,69 @@ export default {
         (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
         (B < 255 ? B < 1 ? 0 : B : 255))
         .toString(16).slice(1)}`;
+    },
+    
+    // Métodos para copiar semana
+    mostrarModalCopiarSemana() {
+      if (!this.filtros.doctorId || this.horarios.length > 0) {
+        return;
+      }
+      
+      this.modalCopiar = {
+        mostrar: true,
+        copiando: false,
+        error: '',
+        exito: ''
+      };
+    },
+    
+    cerrarModalCopiar() {
+      this.modalCopiar.mostrar = false;
+      // Si se copiaron horarios exitosamente, recargar
+      if (this.modalCopiar.exito) {
+        this.cargarHorarios();
+      }
+    },
+    
+    async copiarSemanAnterior() {
+      if (this.modalCopiar.copiando) return;
+      
+      try {
+        this.modalCopiar.copiando = true;
+        this.modalCopiar.error = '';
+        this.modalCopiar.exito = '';
+        
+        const token = localStorage.getItem('token');
+        const fechaDestino = this.inicioSemana.toISOString().split('T')[0];
+        
+        console.log('Copiando semana anterior:', {
+          doctor_id: this.filtros.doctorId,
+          fecha_destino: fechaDestino
+        });
+        
+        const response = await axios.post('/api/horarios/copiar_semana.php', {
+          doctor_id: parseInt(this.filtros.doctorId),
+          fecha_destino: fechaDestino
+        }, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.data?.success) {
+          this.modalCopiar.exito = response.data.message;
+          // Esperar un momento antes de cerrar
+          setTimeout(() => {
+            this.cerrarModalCopiar();
+          }, 1500);
+        } else {
+          this.modalCopiar.error = response.data?.error || 'Error al copiar los horarios';
+        }
+        
+      } catch (error) {
+        console.error('Error al copiar semana:', error);
+        this.modalCopiar.error = error.response?.data?.error || 'Error al copiar los horarios de la semana anterior';
+      } finally {
+        this.modalCopiar.copiando = false;
+      }
     }
   }
 };
@@ -1626,6 +1790,12 @@ export default {
   color: #721c24;
 }
 
+.alert-success {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;
@@ -1649,6 +1819,10 @@ export default {
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modal-container.modal-small {
+  max-width: 450px;
 }
 
 .modal-header {
@@ -1759,6 +1933,50 @@ export default {
   font-size: 14px;
 }
 
+/* Estilos para el modal de copiar */
+.info-copiar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.info-copiar > i {
+  font-size: 24px;
+  color: var(--info-color);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.info-copiar p {
+  margin: 0 0 12px 0;
+  color: var(--dark-color);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.info-copiar p:last-child {
+  margin-bottom: 0;
+}
+
+.semana-info-copiar {
+  background: var(--light-color);
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.advertencia {
+  color: var(--warning-color);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.advertencia i {
+  font-size: 14px;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .calendario-header,
@@ -1808,6 +2026,16 @@ export default {
   
   .semana-navegacion {
     justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .semana-navegacion button {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+  
+  .semana-navegacion button i {
+    margin-right: 4px;
   }
   
   .form-fila {
