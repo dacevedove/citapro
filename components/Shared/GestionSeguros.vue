@@ -541,6 +541,7 @@ export default {
           });
           this.$emit('success', 'Seguro actualizado correctamente');
         } else {
+          // Usar endpoint de debug temporalmente
           await axios.post('/api/pacientes/seguros/crear.php', payload, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
@@ -648,7 +649,7 @@ export default {
     },
     
     formatearVigencia(seguro) {
-      if (!seguro.fecha_vencimiento) {
+      if (!seguro.fecha_vencimiento || seguro.fecha_vencimiento === null || seguro.fecha_vencimiento === '') {
         return 'Sin vencimiento';
       }
       

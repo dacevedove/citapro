@@ -416,7 +416,7 @@ export default {
         ],
         threshold: 0.3,
         distance: 100,
-        minMatchCharLength: 2,
+        minMatchCharLength: 4,
         includeScore: true,
         includeMatches: true,
         ...this.fuseOptions

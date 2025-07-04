@@ -24,22 +24,10 @@
       
       <div class="filter-options">
         <div class="filter-item">
-          <label>Aseguradora:</label>
-          <select class="form-control" v-model="filtros.aseguradora_id" @change="cargarPacientes">
-            <option value="">Todas</option>
-            <option v-for="aseguradora in aseguradoras" :key="aseguradora.id" :value="aseguradora.id">
-              {{ aseguradora.nombre_comercial }}
-            </option>
-            <option value="particular">Pacientes particulares</option>
-          </select>
-        </div>
-        
-        <div class="filter-item">
           <label>Tipo:</label>
           <select class="form-control" v-model="filtros.tipo" @change="cargarPacientes">
             <option value="">Todos</option>
-            <option value="titular">Titular</option>
-            <option value="beneficiario">Beneficiario</option>
+            <option value="asegurado">Asegurado</option>
             <option value="particular">Particular</option>
           </select>
         </div>
@@ -57,7 +45,7 @@
             <th>Nombre</th>
             <th>Cédula</th>
             <th>Contacto</th>
-            <th>Aseguradora</th>
+            <th>Seguros Activos</th>
             <th>Tipo</th>
             <th>Última Cita</th>
             <th>Acciones</th>
@@ -78,12 +66,25 @@
               <span v-if="paciente.email">{{ paciente.email }}</span>
             </td>
             <td>
-              <span v-if="paciente.aseguradora_nombre">{{ paciente.aseguradora_nombre }}</span>
-              <span v-else-if="paciente.tipo === 'particular'">Particular</span>
-              <span v-else>-</span>
+              <div v-if="paciente.tipo === 'asegurado'" class="seguros-indicator">
+                <span class="seguros-count" :class="getSegurosClass(paciente.seguros_activos_count)">
+                  {{ paciente.seguros_activos_count || 0 }}
+                </span>
+                <small>seguros</small>
+                <button 
+                  v-if="paciente.seguros_activos_count > 0" 
+                  class="btn-icon-small" 
+                  title="Ver seguros"
+                  @click="gestionarSeguros(paciente)"
+                >
+                  <i class="fas fa-shield-alt"></i>
+                </button>
+              </div>
+              <span v-else class="text-muted">N/A</span>
             </td>
             <td>
-              <span v-if="paciente.es_titular === 1">Titular</span>
+              <span v-if="paciente.tipo === 'particular'">Particular</span>
+              <span v-else-if="paciente.es_titular === 1">Titular</span>
               <span v-else>Beneficiario</span>
             </td>
             <td>
@@ -100,6 +101,14 @@
               </button>
               <button class="btn-icon" title="Editar" @click="editarPaciente(paciente)">
                 <i class="fas fa-edit"></i>
+              </button>
+              <button 
+                v-if="paciente.tipo === 'asegurado'" 
+                class="btn-icon" 
+                title="Gestionar seguros" 
+                @click="gestionarSeguros(paciente)"
+              >
+                <i class="fas fa-shield-alt"></i>
               </button>
             </td>
           </tr>
@@ -267,117 +276,38 @@
 
           <!-- Formulario para paciente asegurado -->
           <div v-if="tipoPaciente === 'asegurado'">
-            <div class="radio-group">
-              <div class="radio-option">
-                <input type="radio" id="nuevo-titular" v-model="esNuevoTitular" :value="true">
-                <label for="nuevo-titular">Nuevo Titular</label>
-              </div>
-              <div class="radio-option">
-                <input type="radio" id="beneficiario" v-model="esNuevoTitular" :value="false">
-                <label for="beneficiario">Beneficiario</label>
+            <div class="info-banner-simplified">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <strong>Paciente Asegurado</strong>
+                <p>Primero crearemos el paciente, luego podrás gestionar sus seguros médicos.</p>
               </div>
             </div>
 
-            <!-- Si es un nuevo titular -->
-            <div v-if="esNuevoTitular">
-              <div class="form-group">
-                <label for="titular-nombre">Nombre:</label>
-                <input type="text" id="titular-nombre" v-model="formData.nombre" class="form-control" required>
-              </div>
-              <div class="form-group">
-                <label for="titular-apellido">Apellido:</label>
-                <input type="text" id="titular-apellido" v-model="formData.apellido" class="form-control" required>
-              </div>
-              <div class="form-group">
-                <label for="titular-cedula">Cédula:</label>
-                <input type="text" id="titular-cedula" v-model="formData.cedula" class="form-control" required>
-              </div>
-              <div class="form-group">
-                <label for="titular-telefono">Teléfono:</label>
-                <input type="text" id="titular-telefono" v-model="formData.telefono" class="form-control" required>
-              </div>
-              <div class="form-group">
-                <label for="titular-email">Email:</label>
-                <input type="email" id="titular-email" v-model="formData.email" class="form-control">
-              </div>
-              <div class="form-group">
-                <label for="titular-numero-afiliado">Número de Afiliado:</label>
-                <input type="text" id="titular-numero-afiliado" v-model="formData.numero_afiliado" class="form-control" required>
-              </div>
-              <div class="form-group">
-                <label for="titular-aseguradora">Aseguradora:</label>
-                <select id="titular-aseguradora" v-model="formData.aseguradora_id" class="form-control" required>
-                  <option value="">Seleccione una aseguradora</option>
-                  <option v-for="aseguradora in aseguradoras" :key="aseguradora.id" :value="aseguradora.id">
-                    {{ aseguradora.nombre_comercial }}
-                  </option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="titular-estado">Estado:</label>
-                <select id="titular-estado" v-model="formData.estado" class="form-control" required>
-                  <option value="activo">Activo</option>
-                  <option value="inactivo">Inactivo</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <div class="checkbox-group">
-                  <input type="checkbox" id="es_paciente" v-model="formData.es_paciente">
-                  <label for="es_paciente">También es paciente</label>
-                </div>
-              </div>
+            <div class="form-group">
+              <label for="asegurado-nombre">Nombre:</label>
+              <input type="text" id="asegurado-nombre" v-model="formData.nombre" class="form-control" required>
             </div>
-
-            <!-- Si es un beneficiario -->
-            <div v-else>
-              <div class="form-group">
-                <label for="buscar-titular">Buscar Titular:</label>
-                <div class="search-group">
-                  <input type="text" id="buscar-titular" v-model="busquedaTitular" placeholder="Cédula o Número de Afiliado" class="form-control">
-                  <button class="btn-search" @click="buscarTitular">Buscar</button>
-                </div>
-              </div>
-              
-              <div v-if="titularSeleccionado" class="titular-info">
-                <h3>Información del Titular</h3>
-                <p><strong>Nombre:</strong> {{ titularSeleccionado.nombre }} {{ titularSeleccionado.apellido }}</p>
-                <p><strong>Cédula:</strong> {{ titularSeleccionado.cedula }}</p>
-                <p><strong>Número de Afiliado:</strong> {{ titularSeleccionado.numero_afiliado }}</p>
-                <p><strong>Aseguradora:</strong> {{ titularSeleccionado.aseguradora_nombre }}</p>
-              </div>
-
-              <div v-if="titularSeleccionado">
-                <div class="form-group">
-                  <label for="beneficiario-nombre">Nombre:</label>
-                  <input type="text" id="beneficiario-nombre" v-model="formData.nombre" class="form-control" required>
-                </div>
-                <div class="form-group">
-                  <label for="beneficiario-apellido">Apellido:</label>
-                  <input type="text" id="beneficiario-apellido" v-model="formData.apellido" class="form-control" required>
-                </div>
-                <div class="form-group">
-                  <label for="beneficiario-cedula">Cédula:</label>
-                  <input type="text" id="beneficiario-cedula" v-model="formData.cedula" class="form-control" required>
-                </div>
-                <div class="form-group">
-                  <label for="beneficiario-telefono">Teléfono:</label>
-                  <input type="text" id="beneficiario-telefono" v-model="formData.telefono" class="form-control" required>
-                </div>
-                <div class="form-group">
-                  <label for="beneficiario-email">Email:</label>
-                  <input type="email" id="beneficiario-email" v-model="formData.email" class="form-control">
-                </div>
-                <div class="form-group">
-                  <label for="beneficiario-parentesco">Parentesco:</label>
-                  <select id="beneficiario-parentesco" v-model="formData.parentesco" class="form-control" required>
-                    <option value="conyuge">Cónyuge</option>
-                    <option value="hijo">Hijo/a</option>
-                    <option value="padre">Padre</option>
-                    <option value="madre">Madre</option>
-                    <option value="otro">Otro</option>
-                  </select>
-                </div>
-              </div>
+            <div class="form-group">
+              <label for="asegurado-apellido">Apellido:</label>
+              <input type="text" id="asegurado-apellido" v-model="formData.apellido" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="asegurado-cedula">Cédula:</label>
+              <input type="text" id="asegurado-cedula" v-model="formData.cedula" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="asegurado-telefono">Teléfono:</label>
+              <input type="text" id="asegurado-telefono" v-model="formData.telefono" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="asegurado-email">Email:</label>
+              <input type="email" id="asegurado-email" v-model="formData.email" class="form-control">
+            </div>
+            
+            <div class="seguros-hint">
+              <i class="fas fa-shield-alt"></i>
+              <span>Los seguros médicos se configurarán después de crear el paciente</span>
             </div>
           </div>
 
@@ -411,14 +341,42 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal para gestionar seguros -->
+    <div class="modal" v-if="showSegurosModal && pacienteSeleccionado">
+      <div class="modal-content large">
+        <div class="modal-header">
+          <h2>
+            <i class="fas fa-shield-alt"></i>
+            Gestión de Seguros - {{ pacienteSeleccionado.nombre }} {{ pacienteSeleccionado.apellido }}
+          </h2>
+          <button class="close-btn" @click="cerrarModalSeguros">×</button>
+        </div>
+        <div class="modal-body">
+          <GestionSeguros 
+            :paciente-id="pacienteSeleccionado.id"
+            :paciente-nombre="`${pacienteSeleccionado.nombre} ${pacienteSeleccionado.apellido}`"
+            @success="onSegurosSuccess"
+            @error="onSegurosError"
+          />
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="cerrarModalSeguros">Cerrar</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+import GestionSeguros from '../Shared/GestionSeguros.vue';
 
 export default {
   name: 'Pacientes',
+  components: {
+    GestionSeguros
+  },
   data() {
     return {
       pacientes: [],
@@ -431,35 +389,24 @@ export default {
       },
       showCrearModal: false,
       tipoPaciente: 'asegurado',
-      esNuevoTitular: true,
-      busquedaTitular: '',
-      titularSeleccionado: null,
       formData: {
         nombre: '',
         apellido: '',
         cedula: '',
         telefono: '',
-        email: '',
-        numero_afiliado: '',
-        estado: 'activo',
-        es_paciente: true,
-        parentesco: 'conyuge',
-        aseguradora_id: ''
+        email: ''
       },
       showDetallesModal: false,
       showEditarModal: false,
+      showSegurosModal: false,
       pacienteSeleccionado: null,
     };
   },
   computed: {
     formTitulo() {
-      if (this.tipoPaciente === 'particular') {
-        return 'Nuevo Paciente Particular';
-      } else if (this.esNuevoTitular) {
-        return 'Nuevo Titular';
-      } else {
-        return 'Nuevo Beneficiario';
-      }
+      return this.tipoPaciente === 'particular' ? 
+        'Nuevo Paciente Particular' : 
+        'Nuevo Paciente Asegurado';
     }
   },
   mounted() {
@@ -579,6 +526,34 @@ export default {
       this.showDetallesModal = false;
       this.pacienteSeleccionado = null;
     },
+    
+    gestionarSeguros(paciente) {
+      this.pacienteSeleccionado = paciente;
+      this.showSegurosModal = true;
+    },
+    
+    cerrarModalSeguros() {
+      this.showSegurosModal = false;
+      this.pacienteSeleccionado = null;
+      // Recargar pacientes para actualizar contadores de seguros
+      this.cargarPacientes();
+    },
+    
+    onSegurosSuccess(message) {
+      // Mostrar mensaje de éxito
+      alert(message);
+    },
+    
+    onSegurosError(message) {
+      // Mostrar mensaje de error
+      alert(message);
+    },
+    
+    getSegurosClass(count) {
+      if (!count || count === 0) return 'seguros-none';
+      if (count === 1) return 'seguros-single';
+      return 'seguros-multiple';
+    },
 
     async cargarAseguradoras() {
       try {
@@ -684,169 +659,62 @@ export default {
     },
     resetearFormulario() {
       this.tipoPaciente = 'asegurado';
-      this.esNuevoTitular = true;
-      this.busquedaTitular = '';
-      this.titularSeleccionado = null;
       this.formData = {
         nombre: '',
         apellido: '',
         cedula: '',
         telefono: '',
-        email: '',
-        numero_afiliado: '',
-        estado: 'activo',
-        es_paciente: true,
-        parentesco: 'conyuge',
-        aseguradora_id: ''
+        email: ''
       };
-    },
-    async buscarTitular() {
-      if (!this.busquedaTitular) return;
-      
-      this.loading = true;
-      try {
-        let params = {};
-        // Verificar si la búsqueda es una cédula o un número de afiliado
-        if (this.busquedaTitular.match(/^[0-9]+$/)) {
-          params.cedula = this.busquedaTitular;
-        } else {
-          params.numero_afiliado = this.busquedaTitular;
-        }
-        
-        const response = await axios.get('/api/titulares/buscar.php', {
-          params,
-          headers: {
-            'Authorization': `Bearer ${this.getToken()}`
-          }
-        });
-        
-        this.titularSeleccionado = response.data;
-        
-        if (!this.titularSeleccionado) {
-          alert('Titular no encontrado');
-        }
-      } catch (error) {
-        console.error('Error al buscar titular:', error);
-        alert(error.response?.data?.error || 'Error al buscar titular');
-        this.titularSeleccionado = null;
-      } finally {
-        this.loading = false;
-      }
     },
     async guardarPaciente() {
       this.loading = true;
       try {
-        if (this.tipoPaciente === 'asegurado') {
-          if (this.esNuevoTitular) {
-            // Validación de datos
-            if (!this.formData.nombre || !this.formData.apellido || !this.formData.cedula || 
-                !this.formData.telefono || !this.formData.numero_afiliado) {
-              throw new Error('Debe completar todos los campos obligatorios');
-            }
-
-            // Crear nuevo titular
-            const titularData = {
-              nombre: this.formData.nombre,
-              apellido: this.formData.apellido,
-              cedula: this.formData.cedula,
-              telefono: this.formData.telefono,
-              email: this.formData.email || '',
-              estado: this.formData.estado || 'activo',
-              numero_afiliado: this.formData.numero_afiliado,
-              es_paciente: this.formData.es_paciente ? 1 : 0,
-              aseguradora_id: parseInt(this.formData.aseguradora_id) || 1
-            };
-            
-            console.log('Enviando datos de titular:', JSON.stringify(titularData));
-            
-            const response = await axios.post('/api/titulares/crear.php', titularData, {
-              headers: {
-                'Authorization': `Bearer ${this.getToken()}`,
-                'Content-Type': 'application/json'
-              }
-            });
-            
-            console.log('Respuesta del servidor (titular):', response.data);
-            alert('Titular creado exitosamente');
-          } else {
-            // Crear beneficiario
-            if (!this.titularSeleccionado) {
-              throw new Error('Debe seleccionar un titular');
-            }
-            
-            // Validar campos obligatorios
-            if (!this.formData.nombre || !this.formData.apellido || !this.formData.cedula || 
-                !this.formData.telefono) {
-              throw new Error('Debe completar todos los campos obligatorios');
-            }
-            
-            // Volver a utilizar axios pero con una estructura simplificada
-            const pacienteData = {
-              nombre: this.formData.nombre,
-              apellido: this.formData.apellido,
-              cedula: this.formData.cedula,
-              telefono: this.formData.telefono,
-              email: this.formData.email || '',
-              tipo: 'asegurado',
-              titular_id: parseInt(this.titularSeleccionado.id),
-              parentesco: this.formData.parentesco || 'otro'
-            };
-            
-            console.log('Enviando datos de beneficiario:', JSON.stringify(pacienteData));
-            
-            try {
-              const response = await axios({
-                method: 'post',
-                url: '/api/pacientes/crear.php',
-                headers: {
-                  'Authorization': `Bearer ${this.getToken()}`,
-                  'Content-Type': 'application/json'
-                },
-                data: pacienteData
-              });
-              
-              console.log('Respuesta del servidor (beneficiario):', response.data);
-              alert('Beneficiario creado exitosamente');
-            } catch (err) {
-              console.error('Error específico al crear beneficiario:', err);
-              throw err;
-            }
-          }
-        } else {
-          // Crear paciente particular
-          // Validar campos obligatorios
-          if (!this.formData.nombre || !this.formData.apellido || !this.formData.cedula || 
-              !this.formData.telefono) {
-            throw new Error('Debe completar todos los campos obligatorios');
-          }
-          
-          const pacienteData = {
-            nombre: this.formData.nombre,
-            apellido: this.formData.apellido,
-            cedula: this.formData.cedula,
-            telefono: this.formData.telefono,
-            email: this.formData.email || '',
-            tipo: 'particular'
-          };
-          
-          console.log('Enviando datos de paciente particular:', JSON.stringify(pacienteData));
-          
-          const response = await axios.post('/api/pacientes/crear.php', pacienteData, {
-            headers: {
-              'Authorization': `Bearer ${this.getToken()}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          console.log('Respuesta del servidor (particular):', response.data);
-          alert('Paciente particular creado exitosamente');
+        // Validar campos obligatorios
+        if (!this.formData.nombre || !this.formData.apellido || !this.formData.cedula || 
+            !this.formData.telefono) {
+          throw new Error('Debe completar todos los campos obligatorios');
         }
+        
+        const pacienteData = {
+          nombre: this.formData.nombre,
+          apellido: this.formData.apellido,
+          cedula: this.formData.cedula,
+          telefono: this.formData.telefono,
+          email: this.formData.email || '',
+          tipo: this.tipoPaciente
+        };
+        
+        console.log('Enviando datos de paciente:', JSON.stringify(pacienteData));
+        
+        const response = await axios.post('/api/pacientes/crear.php', pacienteData, {
+          headers: {
+            'Authorization': `Bearer ${this.getToken()}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('Respuesta del servidor:', response.data);
+        
+        const mensaje = this.tipoPaciente === 'asegurado' ? 
+          'Paciente creado exitosamente. Ahora puede gestionar sus seguros médicos desde la tabla.' :
+          'Paciente particular creado exitosamente';
+          
+        alert(mensaje);
         
         this.cerrarModal();
         this.cargarPacientes();
+        
+        // Si es asegurado, mostrar hint sobre gestión de seguros
+        if (this.tipoPaciente === 'asegurado') {
+          setTimeout(() => {
+            alert('💡 Consejo: Use el botón "Gestionar Seguros" en la tabla para agregar los seguros médicos del paciente.');
+          }, 1000);
+        }
+        
       } catch (error) {
         console.error('Error al guardar paciente:', error);
-        alert(error.message || 'Error al guardar paciente');
+        alert(error.response?.data?.error || error.message || 'Error al guardar paciente');
       } finally {
         this.loading = false;
       }
@@ -1185,5 +1053,114 @@ h1 {
 .detalle-grupo p {
   margin: 5px 0;
   line-height: 1.4;
+}
+
+/* Estilos para indicadores de seguros */
+.seguros-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seguros-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+
+.seguros-count.seguros-none {
+  background-color: #6c757d;
+}
+
+.seguros-count.seguros-single {
+  background-color: #28a745;
+}
+
+.seguros-count.seguros-multiple {
+  background-color: #007bff;
+}
+
+.seguros-indicator small {
+  font-size: 11px;
+  color: #6c757d;
+}
+
+.btn-icon-small {
+  background: none;
+  border: none;
+  color: #007bff;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.btn-icon-small:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.text-muted {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Modal large */
+.modal-content.large {
+  max-width: 900px;
+  width: 95%;
+}
+
+/* Nuevos estilos para el flujo simplificado */
+.info-banner-simplified {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #e3f2fd;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  border-left: 4px solid #2196f3;
+}
+
+.info-banner-simplified i {
+  color: #2196f3;
+  margin-top: 2px;
+  font-size: 18px;
+}
+
+.info-banner-simplified strong {
+  color: #1976d2;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.info-banner-simplified p {
+  margin: 0;
+  color: #1976d2;
+  font-size: 14px;
+}
+
+.seguros-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f0f8ff;
+  border: 1px dashed #007bff;
+  border-radius: 6px;
+  margin-top: 20px;
+  color: #0056b3;
+  font-size: 14px;
+}
+
+.seguros-hint i {
+  color: #007bff;
 }
 </style>
